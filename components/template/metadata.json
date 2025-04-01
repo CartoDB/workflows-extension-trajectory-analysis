@@ -1,0 +1,32 @@
+{
+    "name": "template",
+    "title": "Fixed value column",
+    "description": "This component adds a fixed value column to a table",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "The table to add the column to",
+            "type": "Table"
+        },
+        {
+            "name": "value",
+            "title": "Column value",
+            "description": "The value to add to the column",
+            "type": "String",
+            "mode": "multiline",
+            "placeholder": "The value\nto add to the column"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the column added",
+            "type": "Table"
+        }
+    ]
+}

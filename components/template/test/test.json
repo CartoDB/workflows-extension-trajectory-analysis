@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "table1",
+            "value": "test"
+        }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "table1",
+            "value": "test2"
+        }
+    }
+]
