@@ -1,8 +1,8 @@
 {
-    "name": "template",
-    "title": "Template",
-    "industry": "Templates",
-    "description": "A template extension for creating new extensions",
+    "name": "trajectory-analysis",
+    "title": "Trajectory Analysis",
+    "industry": "Transportation",
+    "description": "An extension package to handle trajectory data.",
     "icon": "extension-default.svg",
     "version": "1.0.0",
     "lastUpdate": "2024-01-31",
