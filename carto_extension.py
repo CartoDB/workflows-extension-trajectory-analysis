@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 import math
 from typing import Any
+from pathlib import Path
 
 WORKFLOWS_TEMP_SCHEMA = "WORKFLOWS_TEMP"
 EXTENSIONS_TABLENAME = "WORKFLOWS_EXTENSIONS"
@@ -170,12 +171,36 @@ def get_procedure_code_bq(component):
     return procedure_code
 
 
+def get_functions_code(dir: Path = Path("functions/")):
+    """Generate code to declare additonal UDFs to the package.
+
+    The function will look for all SQL files in the argument directory and
+    generate a complete declaration to create all of them.
+    """
+    if not dir.exists():
+        return ""
+
+    udfs = list()
+
+    for filename in dir.glob("*.sql"):
+        with open(filename, "r") as f:
+            # Strip empty lines from the final code
+            contents = "\n".join(l.rstrip() for l in f.readlines() if l.strip())
+            udfs.append(contents)
+
+    code =  "\n\n".join(udfs)
+    return code
+
+
 def create_sql_code_bq(metadata):
+    functions_code = get_functions_code()
+
     procedures_code = ""
     for component in metadata["components"]:
         procedure_code = get_procedure_code_bq(component)
         procedures_code += "\n" + procedure_code
     procedures = [c["procedureName"] for c in metadata["components"]]
+
     metadata_string = json.dumps(metadata).replace("\\n", "\\\\n")
     code = dedent(
         f"""\
@@ -209,6 +234,9 @@ def create_sql_code_bq(metadata):
 
         DELETE FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME}
         WHERE name = '{metadata["name"]}';
+
+        -- create functions
+        {functions_code}
 
         -- create procedures
         {procedures_code}

@@ -1,4 +1,4 @@
-google-cloud-bigquery
-snowflake-connector-python
+google-cloud-bigquery[pandas]
+snowflake-connector-python[secure-local-storage,pandas]
 python-dotenv
 shapely

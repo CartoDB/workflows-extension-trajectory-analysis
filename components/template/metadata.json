@@ -1,6 +1,6 @@
 {
     "name": "template",
-    "title": "Fixed value column",
+    "title": "Fixed Python value column",
     "description": "This component adds a fixed value column to a table",
     "version": "1.0.0",
     "icon": "component-default.svg",
