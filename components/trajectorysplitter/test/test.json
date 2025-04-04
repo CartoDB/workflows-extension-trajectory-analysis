@@ -6,6 +6,7 @@
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "method": "Stops",
+            "min_speed": null,
             "min_duration_sec": 30,
             "min_duration_min": 0,
             "min_duration_hour": 0,
@@ -22,12 +23,30 @@
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "method": "Temporal",
+            "min_speed": null,
             "min_duration_sec": null,
             "min_duration_min": null,
             "min_duration_hour": null,
             "min_duration_day": null,
             "max_diameter": null,
             "time_mode": "Hour",
+            "min_length": 0
+        }
+    },
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "method": "Speed",
+            "min_speed": 1,
+            "min_duration_sec": 30,
+            "min_duration_min": 0,
+            "min_duration_hour": 0,
+            "min_duration_day": 0,
+            "max_diameter": null,
+            "time_mode": null,
             "min_length": 0
         }
     }

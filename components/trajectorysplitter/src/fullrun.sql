@@ -56,6 +56,23 @@ EXECUTE IMMEDIATE FORMAT(
             time_mode,
             min_length
         )
+    WHEN method = 'Speed' THEN
+        FORMAT(
+            '''
+            @@workflows_temp@@.TRAJECTORY_SPEED_SPLITTER(
+                %s,
+                %s,
+                %f,
+                %f, %f, %f, %f,
+                %f
+            )
+            ''',
+            traj_id_col,
+            tpoints_col,
+            min_speed,
+            min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+            min_length
+        )
     END,
     traj_id_col,
     traj_id_col
