@@ -29,13 +29,27 @@
             "optional": false
         },
         {
+            "name": "method",
+            "title": "Split method",
+            "description": "Method to use when splitting the trajectories",
+            "type": "Selection",
+            "options": ["Stops", "Temporal"],
+            "default": "Stops"
+        },
+        {
             "name": "min_duration_sec",
             "title": "Minimum stop (seconds)",
             "description": "Seconds part of the minimum stop duration",
             "type": "Number",
             "min": 0,
             "default": 0,
-            "optional": false
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Stops"
+                }
+            ]
         },
         {
             "name": "min_duration_min",
@@ -44,7 +58,13 @@
             "type": "Number",
             "min": 0,
             "default": 0,
-            "optional": false
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Stops"
+                }
+            ]
         },
         {
             "name": "min_duration_hour",
@@ -53,7 +73,13 @@
             "type": "Number",
             "min": 0,
             "default": 0,
-            "optional": false
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Stops"
+                }
+            ]
         },
         {
             "name": "min_duration_day",
@@ -62,7 +88,13 @@
             "type": "Number",
             "min": 0,
             "default": 0,
-            "optional": false
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Stops"
+                }
+            ]
         },
         {
             "name": "max_diameter",
@@ -71,7 +103,26 @@
             "type": "Number",
             "min": 1,
             "default": 50,
-            "optional": false
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Stops"
+                }
+            ]
+        },
+        {
+            "name": "time_mode",
+            "title": "Temporal split mode",
+            "description": "Mode to use when splitting the trajectories",
+            "type": "Selection",
+            "options": ["Hour", "Day", "Month", "Year"],
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Temporal"
+                }
+            ]
         },
         {
             "name": "min_length",

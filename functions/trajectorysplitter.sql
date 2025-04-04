@@ -70,3 +70,58 @@ def main(
 
     return result.to_dict(orient='records')
 """;
+
+
+CREATE OR REPLACE FUNCTION
+    @@workflows_temp@@.`TRAJECTORY_TEMPORAL_SPLITTER`
+(
+    traj_id STRING,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    mode STRING,
+    min_length FLOAT64
+)
+RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+LANGUAGE python
+OPTIONS (
+    entry_point='main',
+    runtime_version='python-3.11',
+    packages=['numpy','pandas', 'geopandas','movingpandas']
+)
+AS r"""
+from datetime import timedelta
+
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import movingpandas as mpd
+
+def main(traj_id, trajectory, mode, min_length):
+    # build the DataFrame
+    df = pd.DataFrame.from_records(trajectory)
+
+    # build the GeoDataFrame
+    gdf = (
+      gpd.GeoDataFrame(
+        df[['t']],
+        geometry=gpd.points_from_xy(df.lon, df.lat),
+        crs=4326
+      )
+      .set_index('t')
+    )
+
+    # build the Trajectory object
+    traj = mpd.Trajectory(gdf, traj_id)
+
+    result = mpd.TemporalSplitter(traj).split(
+        mode=mode.lower(),
+        min_length=min_length
+    )
+
+    result = result.to_point_gdf().reset_index()
+    result['lon'] = result.geometry.x.astype(np.float64)
+    result['lat'] = result.geometry.y.astype(np.float64)
+    result['seg_id'] = result.traj_id
+    result = result.drop(columns=['traj_id', 'geometry'])
+
+    return result.to_dict(orient='records')
+""";
