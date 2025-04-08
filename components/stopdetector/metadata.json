@@ -29,6 +29,15 @@
             "optional": false
         },
         {
+            "name": "method",
+            "title": "Return",
+            "description": "Whether to return points and stop info or trajectory segments",
+            "type": "Selection",
+            "options": ["Points", "Segments"],
+            "default": "Segments",
+            "optional": false
+        },
+        {
             "name": "min_duration_sec",
             "title": "Minimum stop (seconds)",
             "description": "Seconds part of the minimum stop duration",
