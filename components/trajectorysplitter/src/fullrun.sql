@@ -1,7 +1,7 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
     CREATE OR REPLACE TABLE
-        %s
+        `%s`
     AS
         SELECT
             %s,
@@ -14,16 +14,16 @@ EXECUTE IMMEDIATE FORMAT(
                 )
                 ORDER BY t
             ) AS tpoints
-        FROM %s,
+        FROM `%s`,
         UNNEST(
             %s
         ) AS p
         GROUP BY %s, p.seg_id
         ORDER BY %s, p.seg_id
     ''',
-    output_table,
+    REPLACE(output_table, '`', ''),
     traj_id_col,
-    input_table,
+    REPLACE(input_table, '`', ''),
     CASE WHEN method = 'Stops' THEN
         FORMAT(
             '''
