@@ -1,0 +1,13 @@
+[
+    {
+        "id": "group_trajectories",
+        "inputs": {
+            "input_table": "trajectory_data_ungrouped",
+            "input_traj_id_column": "traj_id",
+            "input_lon_column": "lon",
+            "input_lat_column": "lat",
+            "input_t_column": "t",
+            "input_properties_column": "traj_properties"
+        }
+    }
+]

@@ -1,0 +1,8 @@
+[
+    {
+        "id": "ungroup_trajectories",
+        "inputs": {
+            "input_table": "trajectory_data_grouped"
+        }
+    }
+]

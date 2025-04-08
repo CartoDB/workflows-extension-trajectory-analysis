@@ -1,11 +1,11 @@
 {
     "name": "trajectory-analysis",
     "title": "Trajectory Analysis",
-    "industry": "Transportation",
+    "industry": "TBD",
     "description": "An extension package to handle trajectory data.",
     "icon": "extension-default.svg",
     "version": "1.0.0",
-    "lastUpdate": "2024-01-31",
+    "lastUpdate": "2025-04-08",
     "provider": "bigquery",
     "author": {
         "value": "CARTO",
@@ -25,12 +25,13 @@
         {
             "name": "Optional detail",
             "link": {
-                "label": "Whatever",
+                "label": "TBD",
                 "href": "https://carto.com/"
             }
         }
     ],
     "components": [
-        "template"
+        "group_trajectories",
+        "ungroup_trajectories"
     ]
 }

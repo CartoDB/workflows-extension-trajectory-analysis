@@ -1,0 +1,64 @@
+{
+    "name": "group_trajectories",
+    "title": "Group Trajectories",
+    "description": "This component takes an input table where the trajectory data are stored with a flat structure and group it by trajectory identifier",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "The table to add the column to",
+            "type": "Table"
+        },
+        {
+            "name": "input_traj_id_column",
+            "title": "Trajectory ID column",
+            "description": "The name of the column storing the trajectory identifier",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_lon_column",
+            "title": "Longitude column",
+            "description": "The name of the column storing the longitude column",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_lat_column",
+            "title": "Latitude column",
+            "description": "The name of the column storing the latitude column",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_t_column",
+            "title": "Timestamp column",
+            "description": "The name of the column storing the timestamp column",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_properties_column",
+            "title": "Properties column",
+            "description": "The name of the column storing other relevant properties in JSON format",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the transformed data",
+            "type": "Table"
+        }
+    ]
+}
