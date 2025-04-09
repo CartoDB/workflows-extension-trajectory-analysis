@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_STOP_SPLITTER`
 (
     traj_id STRING,
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     min_duration_sec FLOAT64,
     min_duration_min FLOAT64,
     min_duration_hour FLOAT64,
@@ -10,7 +10,7 @@ CREATE OR REPLACE FUNCTION
     max_diameter FLOAT64,
     min_length FLOAT64
 )
-RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
 OPTIONS (
     entry_point='main',
@@ -41,7 +41,7 @@ def main(
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
-        df[['t']],
+        df[['t', 'properties']],
         geometry=gpd.points_from_xy(df.lon, df.lat),
         crs=4326
       )
@@ -76,11 +76,11 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_TEMPORAL_SPLITTER`
 (
     traj_id STRING,
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     mode STRING,
     min_length FLOAT64
 )
-RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
 OPTIONS (
     entry_point='main',
@@ -102,7 +102,7 @@ def main(traj_id, trajectory, mode, min_length):
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
-        df[['t']],
+        df[['t', 'properties']],
         geometry=gpd.points_from_xy(df.lon, df.lat),
         crs=4326
       )
@@ -131,7 +131,7 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_SPEED_SPLITTER`
 (
     traj_id STRING,
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     min_speed FLOAT64,
     min_duration_sec FLOAT64,
     min_duration_min FLOAT64,
@@ -139,7 +139,7 @@ CREATE OR REPLACE FUNCTION
     min_duration_day FLOAT64,
     min_length FLOAT64
 )
-RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
 OPTIONS (
     entry_point='main',
@@ -170,7 +170,7 @@ def main(
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
-        df[['t']],
+        df[['t', 'properties']],
         geometry=gpd.points_from_xy(df.lon, df.lat),
         crs=4326
       )

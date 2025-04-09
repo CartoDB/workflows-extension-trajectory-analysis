@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_STOP_POINTS`
 (
     traj_id STRING,
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     max_diameter FLOAT64,
     min_duration_sec FLOAT64,
     min_duration_min FLOAT64,
@@ -39,7 +39,7 @@ def main(
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
-        df[['t']],
+        df[['t', 'properties']],
         geometry=gpd.points_from_xy(df.lon, df.lat),
         crs=4326
       )
@@ -73,14 +73,14 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_STOP_SEGMENTS`
 (
     traj_id STRING,
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>,
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     max_diameter FLOAT64,
     min_duration_sec FLOAT64,
     min_duration_min FLOAT64,
     min_duration_hour FLOAT64,
     min_duration_day FLOAT64
 )
-RETURNS ARRAY<STRUCT<stop_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+RETURNS ARRAY<STRUCT<stop_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
 OPTIONS (
     entry_point='main',
@@ -110,7 +110,7 @@ def main(
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
-        df[['t']],
+        df[['t', 'properties']],
         geometry=gpd.points_from_xy(df.lon, df.lat),
         crs=4326
       )

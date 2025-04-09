@@ -10,7 +10,8 @@ EXECUTE IMMEDIATE FORMAT(
                 STRUCT(
                   p.lon AS lon,
                   p.lat AS lat,
-                  TIMESTAMP(p.t) AS t
+                  TIMESTAMP(p.t) AS t,
+                  p.properties AS properties
                 )
                 ORDER BY t
             ) AS tpoints

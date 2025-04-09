@@ -42,7 +42,8 @@ ELSEIF method = 'Segments' THEN
                     STRUCT(
                       s.lon AS lon,
                       s.lat AS lat,
-                      TIMESTAMP(s.t) AS t
+                      TIMESTAMP(s.t) AS t,
+                      s.properties AS properties
                     )
                     ORDER BY t
                 ) AS tpoints
