@@ -438,25 +438,33 @@ def substitute_keys(text: str, dotenv: dict[str, str]) -> str:
     return text
 
 
-def infer_schema_field_bq(key: str, value: Any) -> bigquery.SchemaField:
+def infer_schema_field_bq(key: str, value: Any, from_array: bool=False) -> bigquery.SchemaField:
+    kwargs = dict()
+
+    if from_array:
+        kwargs["mode"] = "REPEATED"
+
     if isinstance(value, int):
-        return bigquery.SchemaField(key, "INT64")
+        return bigquery.SchemaField(key, "INT64", **kwargs)
     elif isinstance(value, float):
-        return bigquery.SchemaField(key, "FLOAT64")
+        return bigquery.SchemaField(key, "FLOAT64", **kwargs)
 
     elif isinstance(value, str):
         if key.endswith("date"):
-            return bigquery.SchemaField(key, "DATE")
-        elif key.endswith("timestamp"):
-            return bigquery.SchemaField(key, "TIMESTAMP")
+            return bigquery.SchemaField(key, "DATE", **kwargs)
+        elif key.endswith("timestamp") or key == "t":
+            return bigquery.SchemaField(key, "TIMESTAMP", **kwargs)
         elif key.endswith("datetime"):
-            return bigquery.SchemaField(key, "DATETIME")
+            return bigquery.SchemaField(key, "DATETIME", **kwargs)
         else:
             try:
                 wkt.loads(value)
-                return bigquery.SchemaField(key, "GEOGRAPHY")
+                return bigquery.SchemaField(key, "GEOGRAPHY", **kwargs)
             except Exception:
-                return bigquery.SchemaField(key, "STRING")
+                return bigquery.SchemaField(key, "STRING", **kwargs)
+
+    elif isinstance(value, list):
+        return infer_schema_field_bq(key, value[0], from_array=True)
 
     elif isinstance(value, dict):
         sub_schema = [
@@ -464,7 +472,7 @@ def infer_schema_field_bq(key: str, value: Any) -> bigquery.SchemaField:
             for sub_key, sub_value in value.items()
         ]
 
-        return bigquery.SchemaField(key, "RECORD", fields=sub_schema)
+        return bigquery.SchemaField(key, "RECORD", fields=sub_schema, **kwargs)
 
     else:
         raise NotImplementedError(
@@ -667,7 +675,14 @@ def _run_query(query: str, component: dict, provider: str, tables: dict) -> dict
         for output in component["outputs"]:
             query = f"SELECT * FROM {tables[output['name']]}"
             query_job = bq_client().query(query)
-            results[output["name"]] = query_job.result().to_dataframe()
+            df = query_job.result().to_dataframe()
+
+            if not df.empty:
+                for column in df.columns:
+                    if isinstance(df.iloc[0][column], np.ndarray):
+                        df[column] = df[column].apply(lambda x: x.tolist())
+
+            results[output["name"]] = df
     else:
         cur = sf_client().cursor()
         cur.execute(query)
@@ -829,6 +844,8 @@ def capture(component):
                     output_name: output_results.to_dict(orient="records")
                     for output_name, output_results in outputs["full"].items()
                 }
+
+                print(outputs)
 
                 contents = json.dumps(outputs, indent=2, default=str)
                 contents = substitute_keys(contents, dotenv=dotenv)
