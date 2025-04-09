@@ -6,11 +6,10 @@ EXECUTE IMMEDIATE FORMAT(
     )
     AS (
         SELECT %s AS traj_id, 
-        ARRAY_AGG(STRUCT(%s AS lon, %s AS lat, %s AS t)) AS tpoints,
-        %s AS traj_properties
+        ARRAY_AGG(STRUCT(%s AS lon, %s AS lat, %s AS t, %s AS traj_properties)) AS tpoints,
         FROM `%s`
         WHERE 1 = 0
-        GROUP BY %s, %s
+        GROUP BY %s
     )
     ''',
     REPLACE(output_table, '`', ''),
@@ -20,6 +19,5 @@ EXECUTE IMMEDIATE FORMAT(
     input_t_column,
     input_properties_column,
     REPLACE(input_table, '`', ''),
-    input_traj_id_column,
-    input_properties_column
+    input_traj_id_column
 );
