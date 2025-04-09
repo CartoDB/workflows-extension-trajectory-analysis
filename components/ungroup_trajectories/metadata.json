@@ -1,0 +1,24 @@
+{
+    "name": "ungroup_trajectories",
+    "title": "Ungroup Trajectories",
+    "description": "This component takes an input table where the trajectory data are stored grouped by the trajectory identifier and ungroup it to a flat structure",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "The table to add the column to",
+            "type": "Table"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the transformed data",
+            "type": "Table"
+        }
+    ]
+}
