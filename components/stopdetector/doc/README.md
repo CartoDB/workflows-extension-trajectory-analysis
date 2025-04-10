@@ -1,5 +1,3 @@
-# Add UUID
+# Detect Stops
 
-A sample component that adds a column with a fixed value.
-
-You can add any information about the component here, using markdown syntax.
+For a given set of trajectories, detect all stops that happen in them. These stops are defined based on a duration and radius, and the component can be configured to return the segments that are considered stops or a set of points with stop information.
