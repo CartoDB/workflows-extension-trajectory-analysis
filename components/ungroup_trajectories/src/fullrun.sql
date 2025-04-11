@@ -14,7 +14,7 @@ EXECUTE IMMEDIATE FORMAT(
         tpoint.lon AS lon, 
         tpoint.lat AS lat, 
         tpoint.t AS t,
-        traj_properties AS traj_properties
+        properties AS properties
         FROM CTE, UNNEST(tpoints) AS tpoint
     )
     ''',

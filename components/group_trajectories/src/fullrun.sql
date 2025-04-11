@@ -6,7 +6,7 @@ EXECUTE IMMEDIATE FORMAT(
     )
     AS (
         SELECT %s AS traj_id, 
-        ARRAY_AGG(STRUCT(%s AS lon, %s AS lat, %s AS t, %s AS traj_properties)) AS tpoints,
+        ARRAY_AGG(STRUCT(%s AS lon, %s AS lat, %s AS t, %s AS properties)) AS tpoints,
         FROM `%s`
         GROUP BY %s
     )

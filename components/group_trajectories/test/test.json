@@ -7,7 +7,7 @@
             "input_lon_column": "lon",
             "input_lat_column": "lat",
             "input_t_column": "t",
-            "input_properties_column": "traj_properties"
+            "input_properties_column": "properties"
         }
     }
 ]
