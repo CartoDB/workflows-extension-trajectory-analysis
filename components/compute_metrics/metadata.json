@@ -1,0 +1,104 @@
+{
+    "name": "computemetrics",
+    "title": "Compute Trajectory Metrics",
+    "description": "Compute basic trajectory metrics, including: distance, duration, direction, speed, and acceleration",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Input table containing the trajectories",
+            "type": "Table"
+        },
+        {
+            "name": "input_traj_id_column",
+            "title": "Trajectory ID",
+            "description": "Column with the trajectory IDs",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_tpoints_column",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_distance_column",
+            "title": "Distance column",
+            "description": "Name to be assigned to the distance column",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_duration_column",
+            "title": "Duration column",
+            "description": "Name to be assigned to the duration column",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_direction_column",
+            "title": "Direction column",
+            "description": "Name to be assigned to the direction column",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_speed_column",
+            "title": "Speed column",
+            "description": "Name to be assigned to the speed column",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_acceleration_column",
+            "title": "Acceleration column",
+            "description": "Name to be assigned to the acceleration column",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_unit_distance",
+            "title": "Distance units",
+            "description": "Unit for the computation of the distance",
+            "type": "Selection",
+            "options": ["km", "m", "dm", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "fathom",
+                "british_ft", "british_yd", "british_chain_sears", "british_link_sears", "sears_yd",
+                "link_sears", "chain_sears", "british_ft_sears_truncated", "british_chain_sears_truncated",
+                "british_chain_benoit", "chain_benoit", "link_benoit", "clarke_yd", "clarke_ft",
+                "clarke_link", "clarke_chain", "british_ft_1936", "gold_coast_ft", "rod", "furlong",
+                "german_m", "survey_in", "survey_ft", "survey_yd", "survey_lk", "survey_ch", "survey_mi",
+                "indian_yd", "indian_ft", "indian_ft_1937", "indian_ft_1962", "indian_ft_1975", "deg"],
+            "default": "m",
+            "optional": true
+        },
+        {
+            "name": "input_unit_time",
+            "title": "Time units",
+            "description": "Unit for the computation of the time",
+            "type": "Selection",
+            "options": ["s", "min", "h", "d", "a"],
+            "default": "s",
+            "optional": true
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the stops information",
+            "type": "Table"
+        }
+    ]
+}

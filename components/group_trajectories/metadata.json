@@ -21,6 +21,14 @@
             "noDefault": true
         },
         {
+            "name": "input_tpoints_column",
+            "title": "Trajectory points",
+            "description": "Column to be used to define the trajectory points",
+            "type": "String",
+            "optional": true,
+            "default": "tpoints"
+        },
+        {
             "name": "input_lon_column",
             "title": "Longitude column",
             "description": "The name of the column storing the longitude column",
