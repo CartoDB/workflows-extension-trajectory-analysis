@@ -33,7 +33,7 @@
             "title": "Split method",
             "description": "Method to use when splitting the trajectories",
             "type": "Selection",
-            "options": ["Stops", "Temporal", "Speed"],
+            "options": ["Stops", "Temporal", "Speed", "Observation Gap"],
             "default": "Stops"
         },
         {
@@ -55,7 +55,7 @@
             "showIf": [
                 {
                     "parameter": "method",
-                    "value": ["Stops", "Speed"]
+                    "value": ["Stops", "Speed", "Observation Gap"]
                 }
             ]
         },
@@ -70,7 +70,7 @@
             "showIf": [
                 {
                     "parameter": "method",
-                    "value": ["Stops", "Speed"]
+                    "value": ["Stops", "Speed", "Observation Gap"]
                 }
             ]
         },
@@ -85,7 +85,7 @@
             "showIf": [
                 {
                     "parameter": "method",
-                    "value": ["Stops", "Speed"]
+                    "value": ["Stops", "Speed", "Observation Gap"]
                 }
             ]
         },
@@ -100,7 +100,7 @@
             "showIf": [
                 {
                     "parameter": "method",
-                    "value": ["Stops", "Speed"]
+                    "value": ["Stops", "Speed", "Observation Gap"]
                 }
             ]
         },
