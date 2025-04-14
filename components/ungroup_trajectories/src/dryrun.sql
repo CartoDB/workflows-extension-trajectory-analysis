@@ -11,14 +11,16 @@ EXECUTE IMMEDIATE FORMAT(
             WHERE 1 = 0
         )
         SELECT 
-        traj_id AS traj_id, 
+        %s AS %s, 
         tpoint.lon AS lon, 
         tpoint.lat AS lat, 
         tpoint.t AS t,
-        properties AS properties
-        FROM CTE, UNNEST(tpoints) AS tpoint
+        tpoint.properties AS properties
+        FROM CTE, UNNEST(%s) AS tpoint
     )
     ''',
     REPLACE(output_table, '`', ''),
-    REPLACE(input_table, '`', '')
+    REPLACE(input_table, '`', ''),
+    input_traj_id_column, input_traj_id_column,
+    input_tpoints_column
 );

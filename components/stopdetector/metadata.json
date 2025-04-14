@@ -75,7 +75,7 @@
         },
         {
             "name": "max_diameter",
-            "title": "Maximum stop diameter",
+            "title": "Maximum stop diameter (m)",
             "description": "Maximum stop diameter accepted (in meters)",
             "type": "Number",
             "min": 1,

@@ -1,0 +1,21 @@
+[
+    {
+        "id": "compute_metrics",
+        "inputs": {
+            "input_table": "trajectories",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "input_distance_column": "distance",
+            "input_distance_unit": "m",
+            "input_duration_column":"duration",
+            "input_direction_column":"direction",
+            "input_speed_column":"speed",
+            "input_speed_unit_space":"m",
+            "input_speed_unit_time":"s",
+            "input_acceleration_column":"acceleration",
+            "input_acceleration_unit_space":"m",
+            "input_acceleration_unit_time":"s",
+            "input_acceleration_unit_time2":"s"
+        }
+    }
+]
