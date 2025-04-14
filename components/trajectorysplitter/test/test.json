@@ -34,7 +34,7 @@
         }
     },
     {
-        "id": 1,
+        "id": 3,
         "inputs": {
             "input_table": "trajectories",
             "traj_id_col": "traj_id",
@@ -42,6 +42,23 @@
             "method": "Speed",
             "min_speed": 1,
             "min_duration_sec": 30,
+            "min_duration_min": 0,
+            "min_duration_hour": 0,
+            "min_duration_day": 0,
+            "max_diameter": null,
+            "time_mode": null,
+            "min_length": 0
+        }
+    },
+    {
+        "id": 4,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "method": "Observation Gap",
+            "min_speed": null,
+            "min_duration_sec": 20,
             "min_duration_min": 0,
             "min_duration_hour": 0,
             "min_duration_day": 0,

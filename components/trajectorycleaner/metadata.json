@@ -1,0 +1,49 @@
+{
+    "name": "trajectorycleaner",
+    "title": "Clean Trajectories",
+    "description": "Clean outliers in a trajectory",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Input table containing the trajectories",
+            "type": "Table"
+        },
+        {
+            "name": "traj_id_col",
+            "title": "Trajectory ID",
+            "description": "Column with the trajectory IDs",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "tpoints_col",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "speed_threshold",
+            "title": "Speed Threshold (km/h)",
+            "description": "Maximum speed to consider an outlier, in km/h",
+            "type": "Number",
+            "optional": false,
+            "noDefault": true,
+            "min": 0
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the cleaned trajectories",
+            "type": "Table"
+        }
+    ]
+}
