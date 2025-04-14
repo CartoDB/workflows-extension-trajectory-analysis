@@ -35,6 +35,7 @@
         "ungroup_trajectories",
         "trajectorysplitter",
         "stopdetector",
+        "compute_metrics",
         "trajectorycleaner"
     ]
 }

@@ -2,7 +2,9 @@
     {
         "id": "ungroup_trajectories",
         "inputs": {
-            "input_table": "trajectory_data_grouped"
+            "input_table": "trajectory_data_grouped",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints"
         }
     }
 ]

@@ -11,6 +11,22 @@
             "title": "Input table",
             "description": "The table to add the column to",
             "type": "Table"
+        },
+        {
+            "name": "input_traj_id_column",
+            "title": "Trajectory ID column",
+            "description": "The name of the column storing the trajectory identifier",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_tpoints_column",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "noDefault": true
         }
     ],
     "outputs": [

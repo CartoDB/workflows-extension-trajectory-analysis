@@ -106,7 +106,7 @@
         },
         {
             "name": "max_diameter",
-            "title": "Maximum stop diameter",
+            "title": "Maximum stop diameter (m)",
             "description": "Maximum stop diameter accepted (in meters)",
             "type": "Number",
             "min": 1,
@@ -134,7 +134,7 @@
         },
         {
             "name": "min_length",
-            "title": "Minimum segment length",
+            "title": "Minimum segment length (m)",
             "description": "Minimum length to consider a segment (in meters)",
             "type": "Number",
             "min": 0,
