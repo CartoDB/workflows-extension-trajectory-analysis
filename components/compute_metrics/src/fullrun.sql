@@ -22,7 +22,7 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(output_table, '`', ''),
     REPLACE(input_table, '`', ''),
     input_traj_id_column,
-    input_tpoints_column
+    input_tpoints_column,
     input_distance_column, 
     input_duration_column,
     input_direction_column,

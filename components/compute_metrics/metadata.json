@@ -1,5 +1,5 @@
 {
-    "name": "computemetrics",
+    "name": "compute_metrics",
     "title": "Compute Trajectory Metrics",
     "description": "Compute basic trajectory metrics, including: distance, duration, direction, speed, and acceleration",
     "version": "1.0.0",
@@ -32,41 +32,41 @@
             "name": "input_distance_column",
             "title": "Distance column",
             "description": "Name to be assigned to the distance column",
-            "type": "Column",
-            "parent": "input_table",
-            "optional": false
+            "type": "String",
+            "default":"distance",
+            "optional": true
         },
         {
             "name": "input_duration_column",
             "title": "Duration column",
             "description": "Name to be assigned to the duration column",
-            "type": "Column",
-            "parent": "input_table",
-            "optional": false
+            "type": "String",
+            "default":"duration",
+            "optional": true
         },
         {
             "name": "input_direction_column",
             "title": "Direction column",
             "description": "Name to be assigned to the direction column",
-            "type": "Column",
-            "parent": "input_table",
-            "optional": false
+            "type": "String",
+            "default":"direction",
+            "optional": true
         },
         {
             "name": "input_speed_column",
             "title": "Speed column",
             "description": "Name to be assigned to the speed column",
-            "type": "Column",
-            "parent": "input_table",
-            "optional": false
+            "type": "String",
+            "default":"speed",
+            "optional": true
         },
         {
             "name": "input_acceleration_column",
             "title": "Acceleration column",
             "description": "Name to be assigned to the acceleration column",
-            "type": "Column",
-            "parent": "input_table",
-            "optional": false
+            "type": "String",
+            "default":"acceleration",
+            "optional": true
         },
         {
             "name": "input_unit_distance",
