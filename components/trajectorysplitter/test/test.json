@@ -14,6 +14,7 @@
             "min_duration_day": 0,
             "max_diameter": 30,
             "time_mode": null,
+            "valuechange_col":null,
             "min_length": 0
         }
     },
@@ -32,6 +33,7 @@
             "min_duration_day": null,
             "max_diameter": null,
             "time_mode": "Hour",
+            "valuechange_col":null,
             "min_length": 0
         }
     },
@@ -50,6 +52,7 @@
             "min_duration_day": 0,
             "max_diameter": null,
             "time_mode": null,
+            "valuechange_col":null,
             "min_length": 0
         }
     },
@@ -68,6 +71,26 @@
             "min_duration_day": 0,
             "max_diameter": null,
             "time_mode": null,
+            "valuechange_col":null,
+            "min_length": 0
+        }
+    },
+    {
+        "id": 5,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "method": "Value Change",
+            "min_speed": null,
+            "input_speed_column":null,
+            "min_duration_sec": null,
+            "min_duration_min": null,
+            "min_duration_hour": null,
+            "min_duration_day": null,
+            "max_diameter": null,
+            "time_mode": null,
+            "valuechange_col":"speed",
             "min_length": 0
         }
     }
