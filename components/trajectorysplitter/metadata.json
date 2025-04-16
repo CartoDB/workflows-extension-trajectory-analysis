@@ -33,7 +33,7 @@
             "title": "Split method",
             "description": "Method to use when splitting the trajectories",
             "type": "Selection",
-            "options": ["Stops", "Temporal", "Speed", "Observation Gap"],
+            "options": ["Stops", "Temporal", "Speed", "Observation Gap", "Value Change"],
             "default": "Stops"
         },
         {
@@ -144,6 +144,7 @@
             "description": "Mode to use when splitting the trajectories",
             "type": "Selection",
             "options": ["Hour", "Day", "Month", "Year"],
+            "optional": false,
             "showIf": [
                 {
                     "parameter": "method",
@@ -159,6 +160,19 @@
             "min": 0,
             "default": 0,
             "optional": false
+        },
+        {
+            "name": "valuechange_col",
+            "title": "Column to check for for changes in consecutive values",
+            "description": "Name of the column to monitor for changes in consecutive values",
+            "type": "String",
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Value Change"
+                }
+            ]
         }
     ],
     "outputs": [

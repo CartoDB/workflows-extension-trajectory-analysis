@@ -91,6 +91,21 @@ EXECUTE IMMEDIATE FORMAT(
             min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
             min_length
         )
+    WHEN method = 'Value Change' THEN
+        FORMAT(
+            '''
+            @@workflows_temp@@.TRAJECTORY_VALUECHANGE_SPLITTER(
+                %s,
+                %s,
+                '%s',
+                %f
+            )
+            ''',
+            traj_id_col,
+            tpoints_col,
+            valuechange_col,
+            min_length
+        )
     END,
     traj_id_col,
     traj_id_col
