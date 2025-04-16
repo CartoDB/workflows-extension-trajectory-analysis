@@ -62,13 +62,16 @@ def main(
         min_length=min_length
     )
 
-    result = result.to_point_gdf().reset_index()
-    result['lon'] = result.geometry.x.astype(np.float64)
-    result['lat'] = result.geometry.y.astype(np.float64)
-    result['seg_id'] = result.traj_id
-    result = result.drop(columns=['traj_id', 'geometry'])
-
-    return result.to_dict(orient='records')
+    if len(result) == 0:
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+    else:
+        result = result.to_point_gdf().reset_index()
+        result['lon'] = result.geometry.x.astype(np.float64)
+        result['lat'] = result.geometry.y.astype(np.float64)
+        result['seg_id'] = result.traj_id
+        result = result.drop(columns=['traj_id', 'geometry'])
+        return result.to_dict(orient='records')
 """;
 
 
@@ -117,13 +120,16 @@ def main(traj_id, trajectory, mode, min_length):
         min_length=min_length
     )
 
-    result = result.to_point_gdf().reset_index()
-    result['lon'] = result.geometry.x.astype(np.float64)
-    result['lat'] = result.geometry.y.astype(np.float64)
-    result['seg_id'] = result.traj_id
-    result = result.drop(columns=['traj_id', 'geometry'])
-
-    return result.to_dict(orient='records')
+    if len(result) == 0:
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+    else:
+        result = result.to_point_gdf().reset_index()
+        result['lon'] = result.geometry.x.astype(np.float64)
+        result['lat'] = result.geometry.y.astype(np.float64)
+        result['seg_id'] = result.traj_id
+        result = result.drop(columns=['traj_id', 'geometry'])
+        return result.to_dict(orient='records')
 """;
 
 
@@ -137,7 +143,8 @@ CREATE OR REPLACE FUNCTION
     min_duration_min FLOAT64,
     min_duration_hour FLOAT64,
     min_duration_day FLOAT64,
-    min_length FLOAT64
+    min_length FLOAT64,
+    input_split_metric_column STRING
 )
 RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
@@ -153,6 +160,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import movingpandas as mpd
+import json
 
 def main(
     traj_id,
@@ -162,7 +170,8 @@ def main(
     min_duration_min,
     min_duration_hour,
     min_duration_day,
-    min_length
+    min_length,
+    input_split_metric_column
 ):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
@@ -191,13 +200,26 @@ def main(
         min_length=min_length
     )
 
-    result = result.to_point_gdf().reset_index()
-    result['lon'] = result.geometry.x.astype(np.float64)
-    result['lat'] = result.geometry.y.astype(np.float64)
-    result['seg_id'] = result.traj_id
-    result = result.drop(columns=['traj_id', 'geometry'])
+    if len(result) == 0:
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+    else:
+        result = result.to_point_gdf().reset_index()
+        result['lon'] = result.geometry.x.astype(np.float64)
+        result['lat'] = result.geometry.y.astype(np.float64)
+        result['seg_id'] = result.traj_id
 
-    return result.to_dict(orient='records')
+        def update_properties(row):
+            try:
+                props = json.loads(row['properties'])
+            except json.JSONDecodeError:
+                props = {}
+            props[input_split_metric_column] = row['speed']
+            return json.dumps(props)
+
+        result['properties'] = result.apply(update_properties, axis=1)
+        result = result.drop(columns=['traj_id', 'geometry','speed'])
+        return result.to_dict(orient='records')
 """;
 
 
@@ -262,11 +284,14 @@ def main(
         min_length=min_length
     )
 
-    result = result.to_point_gdf().reset_index()
-    result['lon'] = result.geometry.x.astype(np.float64)
-    result['lat'] = result.geometry.y.astype(np.float64)
-    result['seg_id'] = result.traj_id
-    result = result.drop(columns=['traj_id', 'geometry'])
-
-    return result.to_dict(orient='records')
+    if len(result) == 0:
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+    else:
+        result = result.to_point_gdf().reset_index()
+        result['lon'] = result.geometry.x.astype(np.float64)
+        result['lat'] = result.geometry.y.astype(np.float64)
+        result['seg_id'] = result.traj_id
+        result = result.drop(columns=['traj_id', 'geometry'])
+        return result.to_dict(orient='records')
 """;

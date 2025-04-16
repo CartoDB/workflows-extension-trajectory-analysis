@@ -30,40 +30,40 @@
         },
         {
             "name": "input_distance_column",
-            "title": "Distance column",
-            "description": "Name to be assigned to the distance column",
+            "title": "Name for the distance property",
+            "description": "Name to be assigned to the distance property",
             "type": "String",
             "default":"distance",
             "optional": true
         },
         {
             "name": "input_duration_column",
-            "title": "Duration column",
-            "description": "Name to be assigned to the duration column",
+            "title": "Name for the duration property",
+            "description": "Name to be assigned to the duration property",
             "type": "String",
             "default":"duration",
             "optional": true
         },
         {
             "name": "input_direction_column",
-            "title": "Direction column",
-            "description": "Name to be assigned to the direction column",
+            "title": "Name for the direction property",
+            "description": "Name to be assigned to the direction property",
             "type": "String",
             "default":"direction",
             "optional": true
         },
         {
             "name": "input_speed_column",
-            "title": "Speed column",
-            "description": "Name to be assigned to the speed column",
+            "title": "Name for the speed property",
+            "description": "Name to be assigned to the speed property",
             "type": "String",
             "default":"speed",
             "optional": true
         },
         {
             "name": "input_acceleration_column",
-            "title": "Acceleration column",
-            "description": "Name to be assigned to the acceleration column",
+            "title": "Name for the acceleration property",
+            "description": "Name to be assigned to the acceleration property",
             "type": "String",
             "default":"acceleration",
             "optional": true

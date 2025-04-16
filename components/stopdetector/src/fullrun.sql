@@ -5,7 +5,7 @@ IF method = "Points" THEN
             `%s`
         AS
             SELECT
-                traj_id,
+                %s,
                 s.stop_id,
                 ST_GEOGFROMTEXT(s.geometry) AS geom,
                 s.start_time,
@@ -20,14 +20,16 @@ IF method = "Points" THEN
                     %f, %f, %f, %f
                 )
             ) AS s
-            ORDER BY traj_id, s.stop_id
+            ORDER BY %s, s.stop_id
         ''',
         REPLACE(output_table, '`', ''),
+        traj_id_col,
         REPLACE(input_table, '`', ''),
         traj_id_col,
         tpoints_col,
         max_diameter,
-        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day
+        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+        traj_id_col
     );
 ELSEIF method = 'Segments' THEN
     EXECUTE IMMEDIATE FORMAT(
@@ -36,7 +38,7 @@ ELSEIF method = 'Segments' THEN
             `%s`
         AS
             SELECT
-                traj_id,
+                %s,
                 s.stop_id,
                 ARRAY_AGG(
                     STRUCT(
@@ -56,14 +58,16 @@ ELSEIF method = 'Segments' THEN
                     %f, %f, %f, %f
                 )
             ) AS s
-            GROUP BY traj_id, s.stop_id
-            ORDER BY traj_id, s.stop_id
+            GROUP BY %s, s.stop_id
+            ORDER BY %s, s.stop_id
         ''',
         REPLACE(output_table, '`', ''),
+        traj_id_col,
         REPLACE(input_table, '`', ''),
         traj_id_col,
         tpoints_col,
         max_diameter,
-        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day
+        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+        traj_id_col, traj_id_col
     );
 END IF;

@@ -6,7 +6,7 @@ EXECUTE IMMEDIATE FORMAT(
     WITH
         cleaned_cte AS (
             SELECT
-                traj_id,
+                %s,
                 ARRAY_AGG(
                     STRUCT(
                       s.lon AS lon,
@@ -14,17 +14,18 @@ EXECUTE IMMEDIATE FORMAT(
                       TIMESTAMP(s.t) AS t,
                       s.properties AS properties
                     )
-                    ORDER BY t
+                    ORDER BY s.t
                 ) AS tpoints
             FROM `%s`,
             UNNEST(
                 @@workflows_temp@@.TRAJECTORY_OUTLIER_CLEANER(
                     %s,
                     %s,
-                    %f
+                    %f,
+                    '%s', '%s'
                 )
             ) AS s
-            GROUP BY traj_id
+            GROUP BY %s
         )
     SELECT
         input.* EXCEPT ( %s ),
@@ -36,10 +37,13 @@ EXECUTE IMMEDIATE FORMAT(
     ON input.%s = cleaned.traj_id
     ''',
     REPLACE(output_table, '`', ''),
+    traj_id_col,
     REPLACE(input_table, '`', ''),
     traj_id_col,
     tpoints_col,
     speed_threshold,
+    input_unit_distance, input_unit_time,
+    traj_id_col,
     tpoints_col,
     tpoints_col,
     REPLACE(input_table, '`', ''),

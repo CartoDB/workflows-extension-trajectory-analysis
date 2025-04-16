@@ -42,7 +42,26 @@
             "description": "Consider segments above this speed, in meters per second",
             "type": "Number",
             "min": 0,
-            "default": 1
+            "default": 1,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": ["Speed"]
+                }
+            ]
+        },
+        {
+            "name": "input_speed_column",
+            "title": "Name for the computed speed property",
+            "description": "Name to be assigned to the computed speed property",
+            "type": "String",
+            "default": "speed",
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": ["Speed"]
+                }
+            ]
         },
         {
             "name": "min_duration_sec",

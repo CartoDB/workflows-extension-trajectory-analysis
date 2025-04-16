@@ -13,7 +13,7 @@ EXECUTE IMMEDIATE FORMAT(
                   TIMESTAMP(p.t) AS t,
                   p.properties AS properties
                 )
-                ORDER BY t
+                ORDER BY p.t
             ) AS tpoints
         FROM `%s`,
         UNNEST(
@@ -65,14 +65,16 @@ EXECUTE IMMEDIATE FORMAT(
                 %s,
                 %f,
                 %f, %f, %f, %f,
-                %f
+                %f,
+                '%s'
             )
             ''',
             traj_id_col,
             tpoints_col,
             min_speed,
             min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
-            min_length
+            min_length,
+            input_speed_column
         )
     WHEN method = 'Observation Gap' THEN
         FORMAT(
