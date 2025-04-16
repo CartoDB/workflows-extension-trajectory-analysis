@@ -1,26 +1,38 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE OR REPLACE TABLE `%s`
-    OPTIONS (
-        expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-    )
-    AS (
-        WITH CTE AS(
-            SELECT *
-            FROM `%s`
-            WHERE 1 = 0
-        )
-        SELECT 
-        %s AS %s, 
-        tpoint.lon AS lon, 
-        tpoint.lat AS lat, 
-        tpoint.t AS t,
-        tpoint.properties AS properties
-        FROM CTE, UNNEST(%s) AS tpoint
-    )
+    CREATE OR REPLACE TABLE
+        `%s`
+    (
+        %s
+    );
     ''',
     REPLACE(output_table, '`', ''),
-    REPLACE(input_table, '`', ''),
-    input_traj_id_column, input_traj_id_column,
-    input_tpoints_column
+    CASE WHEN NOT output_lines THEN
+        FORMAT(
+            '''
+            %s STRING,
+            lon FLOAT64,
+            lat FLOAT64,
+            t TIMESTAMP,
+            properties JSON
+            ''',
+            input_traj_id_column
+        )
+    WHEN output_lines THEN
+        FORMAT(
+            '''
+            %s STRING,
+            lon_start FLOAT64,
+            lat_start FLOAT64,
+            t_start TIMESTAMP,
+            properties_start JSON,
+            lon_end FLOAT64,
+            lat_end FLOAT64,
+            t_end TIMESTAMP,
+            properties_end JSON,
+            geom GEOGRAPHY
+            ''',
+            input_traj_id_column
+        )
+    END
 );

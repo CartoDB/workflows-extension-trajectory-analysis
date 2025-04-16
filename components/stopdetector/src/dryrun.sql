@@ -4,7 +4,7 @@ IF method = 'Points' THEN
         CREATE OR REPLACE TABLE
             `%s`
         (
-            traj_id STRING,
+            %s STRING,
             stop_id STRING,
             geom GEOGRAPHY,
             start_time TIMESTAMP,
@@ -12,7 +12,8 @@ IF method = 'Points' THEN
             duration_s FLOAT64
         );
         ''',
-        REPLACE(output_table, '`', '')
+        REPLACE(output_table, '`', ''),
+        traj_id_col
     );
 ELSEIF method = 'Segments' THEN
     EXECUTE IMMEDIATE FORMAT(
@@ -20,11 +21,13 @@ ELSEIF method = 'Segments' THEN
         CREATE OR REPLACE TABLE
             `%s`
         (
-            traj_id STRING,
+            %s STRING,
             stop_id STRING,
-            tpoints ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP>>
+            %s ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
         );
         ''',
-        REPLACE(output_table, '`', '')
+        REPLACE(output_table, '`', ''),
+        traj_id_col,
+        tpoints_col
     );
 END IF;

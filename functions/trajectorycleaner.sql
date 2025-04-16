@@ -3,7 +3,9 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
-    speed_threshold FLOAT64
+    speed_threshold FLOAT64,
+    input_unit_distance STRING,
+    input_unit_time STRING
 )
 RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
@@ -20,7 +22,13 @@ import pandas as pd
 import geopandas as gpd
 import movingpandas as mpd
 
-def main(traj_id, trajectory, speed_threshold):
+def main(
+  traj_id, 
+  trajectory, 
+  speed_threshold,
+  input_unit_distance,
+  input_unit_time
+):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -37,7 +45,7 @@ def main(traj_id, trajectory, speed_threshold):
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
-    result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=("km", "h"))
+    result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=(input_unit_distance, input_unit_time))
 
     result = result.to_point_gdf().reset_index()
     result['lon'] = result.geometry.x.astype(np.float64)

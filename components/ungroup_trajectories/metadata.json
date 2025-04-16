@@ -27,7 +27,14 @@
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
-        }
+        },
+        {
+            "name": "output_lines",
+            "title": "Return step-by-step lines",
+            "description": "Activate to return step-by-step lines",
+            "type": "Boolean",
+            "default": true
+        }  
     ],
     "outputs": [
         {

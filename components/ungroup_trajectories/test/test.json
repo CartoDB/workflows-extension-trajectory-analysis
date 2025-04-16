@@ -1,10 +1,20 @@
 [
     {
-        "id": "ungroup_trajectories",
+        "id": "ungroup_trajectories_points",
         "inputs": {
             "input_table": "trajectory_data_grouped",
             "input_traj_id_column": "traj_id",
-            "input_tpoints_column": "tpoints"
+            "input_tpoints_column": "tpoints",
+            "output_lines":false
+        }
+    },
+    {
+        "id": "ungroup_trajectories_lines",
+        "inputs": {
+            "input_table": "trajectory_data_grouped",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "output_lines":true
         }
     }
 ]
