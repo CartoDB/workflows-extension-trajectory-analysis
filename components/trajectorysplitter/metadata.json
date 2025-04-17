@@ -1,6 +1,6 @@
 {
     "name": "trajectorysplitter",
-    "title": "Split trajectories",
+    "title": "Split Trajectories",
     "description": "Split the trajectories in different segments",
     "version": "1.0.0",
     "icon": "component-default.svg",

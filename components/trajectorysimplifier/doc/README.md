@@ -1,0 +1,3 @@
+# Trajectory Simplifier
+
+`TODO`
