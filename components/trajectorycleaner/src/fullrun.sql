@@ -34,7 +34,7 @@ EXECUTE IMMEDIATE FORMAT(
         `%s` input
     INNER JOIN
         cleaned_cte cleaned
-    ON input.%s = cleaned.traj_id
+    ON input.%s = cleaned.%s
     ''',
     REPLACE(output_table, '`', ''),
     traj_id_col,
@@ -47,5 +47,5 @@ EXECUTE IMMEDIATE FORMAT(
     tpoints_col,
     tpoints_col,
     REPLACE(input_table, '`', ''),
-    traj_id_col
+    traj_id_col, traj_id_col
 );
