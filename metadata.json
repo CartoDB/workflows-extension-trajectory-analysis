@@ -36,6 +36,7 @@
         "trajectorysplitter",
         "stopdetector",
         "compute_metrics",
-        "trajectorycleaner"
+        "trajectorycleaner",
+        "trajectorysimplifier"
     ]
 }
