@@ -18,7 +18,8 @@ EXECUTE IMMEDIATE FORMAT(
         UNNEST(
             @@workflows_temp@@.TRAJECTORY_SIMPLIFIER(
                 %s,
-                %s
+                %s,
+                %f
             )
         ) AS s
         GROUP BY %s
@@ -28,5 +29,6 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(input_table, '`', ''),
     traj_id_col,
     tpoints_col,
+    rounding_precision,
     traj_id_col
 );

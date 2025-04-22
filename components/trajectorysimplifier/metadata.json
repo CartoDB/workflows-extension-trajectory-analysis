@@ -27,6 +27,14 @@
             "type": "Column",
             "parent": "input_table",
             "optional": false
+        },
+        {
+            "name": "rounding_precision",
+            "title": "Rounding precision",
+            "description": "Decimal precision to be used when rounding the coordinates used to join the original and simplified trajectory",
+            "type": "Number",
+            "default": 10,
+            "optional": true
         }
     ],
     "outputs": [

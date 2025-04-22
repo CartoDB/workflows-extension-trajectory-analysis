@@ -2,7 +2,8 @@ CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_SIMPLIFIER`
 (
     traj_id STRING, 
-    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
+    trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
+    rounding_precision FLOAT64
 )
 RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
@@ -17,10 +18,14 @@ import datetime
 import shapely.wkt
 pymeos_initialize()
 
-def main(traj_id, trajectory):
+def main(traj_id, trajectory, rounding_precision):
 
+    rounding_precision = int(rounding_precision)
     df = pd.DataFrame.from_records(trajectory)
     df['geom'] = df.apply(lambda row: f"POINT ({row['lon']} {row['lat']})", axis=1)
+    df['t'] = df['t'].dt.tz_localize(None)
+    df['lon_rounded'] = df['lon'].round(rounding_precision)
+    df['lat_rounded'] = df['lat'].round(rounding_precision)
 
     gpd = pd.DataFrame(df.geom, columns=['geom'])
     gpd['t'] = df.t
@@ -53,10 +58,11 @@ def main(traj_id, trajectory):
         't': pd.to_datetime(t, format='%Y%m%d%H%M%S')
 
     })
-    df['t'] = df['t'].dt.tz_localize(None)
     result['t'] = result['t'].dt.tz_localize(None)
     result[['lon', 'lat']] = result['geom'].str.extract(r'POINT \(([-\d\.]+) ([-\d\.]+)\)').astype(float)
-    result = pd.merge(result, df[['t','lon','lat','properties']], on=['t','lon','lat'], how = 'left')
-    result = result.drop(columns=['geom'])
+    result['lon_rounded'] = result['lon'].round(rounding_precision)
+    result['lat_rounded'] = result['lat'].round(rounding_precision)
+    result = pd.merge(result, df[['t','lon_rounded','lat_rounded','properties']], on=['t','lon_rounded','lat_rounded'], how = 'left')
+    result = result.drop(columns=['geom', 'lon_rounded','lat_rounded'])
     return result.to_dict(orient='records')
 """;
