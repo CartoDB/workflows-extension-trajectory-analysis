@@ -1,6 +1,6 @@
 {
     "name": "get_values_at_timestamp",
-    "title": "Get Values At Timestamp",
+    "title": "Get Position At Timestamp",
     "description": "Retunr the interpolated positions at the time closest to the provided timestamp",
     "version": "1.0.0",
     "icon": "component-default.svg",
