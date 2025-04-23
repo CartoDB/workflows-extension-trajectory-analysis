@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "t_at_year": 2014,
+            "t_at_month":2,
+            "t_at_day": 15,
+            "t_at_hour": 11,
+            "t_at_minute": 25,
+            "t_at_second": 43
+        }
+    }
+]

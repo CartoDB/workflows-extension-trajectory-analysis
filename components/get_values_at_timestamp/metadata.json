@@ -1,0 +1,76 @@
+{
+    "name": "get_values_at_timestamp",
+    "title": "Get Position At Timestamp",
+    "description": "Retunr the interpolated positions at the time closest to the provided timestamp",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Input table containing the trajectories",
+            "type": "Table"
+        },
+        {
+            "name": "traj_id_col",
+            "title": "Trajectory ID",
+            "description": "Column with the trajectory IDs",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "tpoints_col",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "t_at_year",
+            "title": "Year",
+            "description": "The year of the provided timestamp",
+            "type": "Number"
+        },
+        {
+            "name": "t_at_month",
+            "title": "Month",
+            "description": "The month of the provided timestamp",
+            "type": "Number"
+        },
+        {
+            "name": "t_at_day",
+            "title": "Day",
+            "description": "The day of the provided timestamp",
+            "type": "Number"
+        },
+        {
+            "name": "t_at_hour",
+            "title": "Hour",
+            "description": "The hour of the provided timestamp",
+            "type": "Number"
+        },
+        {
+            "name": "t_at_minute",
+            "title": "Minute",
+            "description": "The minute of the provided timestamp",
+            "type": "Number"
+        },
+        {
+            "name": "t_at_second",
+            "title": "Second",
+            "description": "The second of the provided timestamp",
+            "type": "Number"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the column added",
+            "type": "Table"
+        }
+    ]
+}

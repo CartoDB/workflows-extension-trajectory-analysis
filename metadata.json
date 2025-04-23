@@ -37,6 +37,7 @@
         "stopdetector",
         "compute_metrics",
         "trajectorycleaner",
-        "trajectorysimplifier"
+        "trajectorysimplifier",
+        "get_values_at_timestamp"
     ]
 }

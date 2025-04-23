@@ -31,7 +31,7 @@
         {
             "name": "rounding_precision",
             "title": "Rounding precision",
-            "description": "Decimal precision to be used when rounding the coordinates used to join the original and simplified trajectory",
+            "description": "Decimal precision to be used when rounding the ",
             "type": "Number",
             "default": 10,
             "optional": true
