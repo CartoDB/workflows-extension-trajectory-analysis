@@ -1,0 +1,41 @@
+[
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_polygon": "polygon_1",
+            "polygon_col": "polygon",
+            "polygon_properties_col": "polygon_properties",            
+            "return_polygon_properties":true,
+            "intersection_method":"Segments"
+        }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_polygon": "polygon_1",
+            "polygon_col": "polygon",
+            "polygon_properties_col": "polygon_properties",            
+            "return_polygon_properties":false,
+            "intersection_method":"Points"
+        }
+    },
+    {
+        "id": 3,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_polygon": "polygon_2",
+            "polygon_col": "polygon",
+            "polygon_properties_col": "polygon_properties",            
+            "return_polygon_properties":false,
+            "intersection_method":"Points"
+        }
+    }
+]
