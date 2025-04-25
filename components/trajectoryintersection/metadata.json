@@ -1,0 +1,79 @@
+{
+    "name": "trajectoryintersection",
+    "title": "Intersect Trajectories with a polygon",
+    "description": "Check if a trajectory interesect a given polygon and optionally returns the trajectory segments that intersects the given polygon",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Input table containing the trajectories",
+            "type": "Table"
+        },
+        {
+            "name": "traj_id_col",
+            "title": "Trajectory ID",
+            "description": "Column with the trajectory IDs",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "tpoints_col",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "input_table_polygon",
+            "title": "Polygon table",
+            "description": "Table containing the polygon to intersect",
+            "type": "Table"
+        },
+        {
+            "name": "polygon_col",
+            "title": "Polygon geometry",
+            "description": "Column with the polygon geometry",
+            "type": "Column",
+            "parent": "input_table_polygon",
+            "optional": false
+        },
+        {
+            "name": "polygon_properties_col",
+            "title": "Polygon properties",
+            "description": "Column with the polygon properties as a JSON-encoded string",
+            "type": "Column",
+            "parent": "input_table_polygon",
+            "optional": false
+        },
+        {
+            "name": "return_polygon_properties",
+            "title": "Return polygon properties",
+            "description": "Select if the component should also return the polygon properties",
+            "type": "Boolean",
+            "default": false,
+            "optional": true
+        },
+        {
+            "name": "intersection_method",
+            "title": "Intersection method",
+            "description": "Select if the component should also return the polygon properties",
+            "type": "Selection",
+            "options": ["Segments", "Points"],
+            "default": "Segments",
+            "optional": false
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the simplified trajectories",
+            "type": "Table"
+        }
+    ]
+}

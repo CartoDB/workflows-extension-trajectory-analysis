@@ -55,7 +55,7 @@
         {
             "name": "input_properties_column",
             "title": "Properties column",
-            "description": "The name of the column storing other relevant properties in JSON format",
+            "description": "The name of the column storing other relevant properties as a JSON-encoded string",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true

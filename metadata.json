@@ -38,6 +38,7 @@
         "compute_metrics",
         "trajectorycleaner",
         "trajectorysimplifier",
-        "get_values_at_timestamp"
+        "get_values_at_timestamp",
+        "trajectoryintersection"
     ]
 }
