@@ -53,12 +53,13 @@
             "noDefault": true
         },
         {
-            "name": "input_properties_column",
-            "title": "Properties column",
-            "description": "The name of the column storing other relevant properties as a JSON-encoded string",
+            "name": "input_properties_columns",
+            "title": "Properties columns",
+            "description": "All the columns to be stored as a JSON-encoded string per timestamp",
             "type": "Column",
+            "mode": "multiple",
             "parent": "input_table",
-            "noDefault": true
+            "optional": true
         }
     ],
     "outputs": [
