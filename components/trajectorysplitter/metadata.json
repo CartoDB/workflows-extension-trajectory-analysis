@@ -33,8 +33,23 @@
             "title": "Split method",
             "description": "Method to use when splitting the trajectories",
             "type": "Selection",
-            "options": ["Stops", "Temporal", "Speed", "Observation Gap", "Value Change"],
+            "options": ["Stops", "Temporal", "Speed", "Observation Gap", "Value Change", "Angle Change"],
             "default": "Stops"
+        },
+        {
+            "name": "min_angle",
+            "title": "Minimum Angle",
+            "description": "Minimum angle change",
+            "type": "Number",
+            "min": 0,
+            "max": 360,
+            "default": 45,
+            "showIf": [
+                {
+                    "parameter": "method",
+                    "value": "Angle Change"
+                }
+            ]
         },
         {
             "name": "min_speed",
@@ -46,20 +61,7 @@
             "showIf": [
                 {
                     "parameter": "method",
-                    "value": ["Speed"]
-                }
-            ]
-        },
-        {
-            "name": "input_speed_column",
-            "title": "Name for the computed speed property",
-            "description": "Name to be assigned to the computed speed property",
-            "type": "String",
-            "default": "speed",
-            "showIf": [
-                {
-                    "parameter": "method",
-                    "value": ["Speed"]
+                    "value": ["Speed", "Angle Change"]
                 }
             ]
         },
@@ -163,7 +165,7 @@
         },
         {
             "name": "valuechange_col",
-            "title": "Column to check for for changes in consecutive values",
+            "title": "Column to check for changes in consecutive values",
             "description": "Name of the column to monitor for changes in consecutive values",
             "type": "String",
             "optional": false,
