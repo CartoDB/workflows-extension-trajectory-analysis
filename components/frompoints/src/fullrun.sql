@@ -25,10 +25,10 @@ EXECUTE IMMEDIATE FORMAT(
     input_lon_column,
     input_lat_column,
     input_t_column,
-    CASE WHEN (input_properties_columns IS NOT NULL) THEN
-        FORMAT('TO_JSON_STRING((SELECT AS STRUCT %s)) AS properties', input_properties_columns)
-    ELSE
+    CASE WHEN (input_properties_columns IS NULL OR input_properties_columns = '') THEN
         "'{}' AS properties"
+    ELSE
+        FORMAT('TO_JSON_STRING((SELECT AS STRUCT %s)) AS properties', input_properties_columns)
     END,
     input_t_column,
     input_tpoints_column, 
