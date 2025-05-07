@@ -8,7 +8,31 @@
             "input_lon_column": "lon",
             "input_lat_column": "lat",
             "input_t_column": "t",
-            "input_properties_column": "properties"
+            "input_properties_columns": null
+        }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "trajectory_data_ungrouped",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "input_lon_column": "lon",
+            "input_lat_column": "lat",
+            "input_t_column": "t",
+            "input_properties_columns": "speed,bearing"
+        }
+    },
+    {
+        "id": 3,
+        "inputs": {
+            "input_table": "trajectory_data_ungrouped",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "input_lon_column": "lon",
+            "input_lat_column": "lat",
+            "input_t_column": "t",
+            "input_properties_columns": "speed,bearing,temperature"
         }
     }
 ]
