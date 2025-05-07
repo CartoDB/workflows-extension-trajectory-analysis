@@ -1,7 +1,7 @@
 {
-    "name": "group_trajectories",
-    "title": "Group Trajectories",
-    "description": "This component takes an input table where the trajectory data are stored with a flat structure and group it by trajectory identifier",
+    "name": "frompoints",
+    "title": "Trajectories From Points",
+    "description": "Convert a table of timestamped points in trajectories.",
     "version": "1.0.0",
     "icon": "component-default.svg",
     "cartoEnvVars": [],
@@ -9,7 +9,7 @@
         {
             "name": "input_table",
             "title": "Input table",
-            "description": "The table to add the column to",
+            "description": "The table with the timestamped points per row",
             "type": "Table"
         },
         {

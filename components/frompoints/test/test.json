@@ -1,6 +1,6 @@
 [
     {
-        "id": "group_trajectories",
+        "id": 1,
         "inputs": {
             "input_table": "trajectory_data_ungrouped",
             "input_traj_id_column": "traj_id",

@@ -31,7 +31,7 @@
         }
     ],
     "components": [
-        "group_trajectories",
+        "frompoints",
         "ungroup_trajectories",
         "trajectorysplitter",
         "stopdetector",
