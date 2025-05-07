@@ -5,7 +5,7 @@ EXECUTE IMMEDIATE FORMAT(
     (
         %s STRING,
         seg_id STRING,
-        %s ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties JSON>>
+        %s ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
     );
     ''',
     REPLACE(output_table, '`', ''),
