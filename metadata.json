@@ -32,7 +32,7 @@
     ],
     "components": [
         "frompoints",
-        "ungroup_trajectories",
+        "topoints",
         "trajectorysplitter",
         "stopdetector",
         "compute_metrics",
