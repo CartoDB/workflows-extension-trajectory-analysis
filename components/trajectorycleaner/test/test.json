@@ -10,5 +10,17 @@
             "input_unit_time":"s"
 
         }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "speed_threshold": 0,
+            "input_unit_distance":"m",
+            "input_unit_time":"s"
+
+        }
     }
 ]

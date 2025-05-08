@@ -19,12 +19,17 @@ EXECUTE IMMEDIATE FORMAT(
             @@workflows_temp@@.TRAJECTORY_METRICS(
                 %s,
                 %s,
+                %t,
+                %t,
+                %t,
+                %t,
+                %t,
                 '%s',
                 '%s',
                 '%s',                     
                 '%s',
                 '%s',
-                '%s', '%s'
+                '%s', '%s', '%s', '%s', '%s', '%s'
             )
         ) AS s
         GROUP BY %s
@@ -35,13 +40,22 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(input_table, '`', ''),
     input_traj_id_column,
     input_tpoints_column,
-    input_distance_column, 
-    input_duration_column,
-    input_direction_column,
-    input_speed_column, 
-    input_acceleration_column,
-    input_unit_distance,
-    input_unit_time,
+    input_distance_bool, 
+    input_duration_bool,
+    input_direction_bool,
+    input_speed_bool, 
+    input_acceleration_bool,
+    IFNULL(input_distance_column, ''), 
+    IFNULL(input_duration_column, ''),
+    IFNULL(input_direction_column, ''),
+    IFNULL(input_speed_column, ''), 
+    IFNULL(input_acceleration_column, ''),
+    IFNULL(input_distance_unit_distance, ''),
+    IFNULL(input_speed_unit_distance, ''),
+    IFNULL(input_acceleration_unit_distance, ''),
+    IFNULL(input_duration_unit_time, ''),
+    IFNULL(input_speed_unit_time, ''),
+    IFNULL(input_acceleration_unit_time, ''),
     input_traj_id_column,
     input_traj_id_column
 );

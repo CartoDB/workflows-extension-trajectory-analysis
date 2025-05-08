@@ -29,12 +29,48 @@
             "optional": false
         },
         {
+            "name": "input_distance_bool",
+            "title": "Compute distance property",
+            "description": "Whether to compute the distance property",
+            "type": "Boolean",
+            "default": true,
+            "optional": false
+        },
+        {
             "name": "input_distance_column",
             "title": "Name for the distance property",
             "description": "Name to be assigned to the distance property",
             "type": "String",
             "default":"distance",
-            "optional": true
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "input_distance_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_distance_unit_distance",
+            "title": "Distance units",
+            "description": "Unit for the computation of the distance",
+            "type": "Selection",
+            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "default": "m",
+            "showIf": [
+                {
+                    "parameter": "input_distance_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_duration_bool",
+            "title": "Compute duration property",
+            "description": "Whether to compute the duration property",
+            "type": "Boolean",
+            "default": true,
+            "optional": false
         },
         {
             "name": "input_duration_column",
@@ -42,7 +78,35 @@
             "description": "Name to be assigned to the duration property",
             "type": "String",
             "default":"duration",
-            "optional": true
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "input_duration_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_duration_unit_time",
+            "title": "Time units",
+            "description": "Unit for the computation of the time",
+            "type": "Selection",
+            "options": ["s", "min", "h", "d", "a"],
+            "default": "s",
+            "showIf": [
+                {
+                    "parameter": "input_duration_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_direction_bool",
+            "title": "Compute direction property",
+            "description": "Whether to compute the direction property",
+            "type": "Boolean",
+            "default": true,
+            "optional": false
         },
         {
             "name": "input_direction_column",
@@ -50,7 +114,21 @@
             "description": "Name to be assigned to the direction property",
             "type": "String",
             "default":"direction",
-            "optional": true
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "input_direction_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_speed_bool",
+            "title": "Compute speed property",
+            "description": "Whether to compute the speed property",
+            "type": "Boolean",
+            "default": true,
+            "optional": false
         },
         {
             "name": "input_speed_column",
@@ -58,7 +136,49 @@
             "description": "Name to be assigned to the speed property",
             "type": "String",
             "default":"speed",
-            "optional": true
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "input_speed_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_speed_unit_distance",
+            "title": "Distance units",
+            "description": "Unit for the computation of the distance",
+            "type": "Selection",
+            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "default": "m",
+            "showIf": [
+                {
+                    "parameter": "input_speed_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_speed_unit_time",
+            "title": "Time units",
+            "description": "Unit for the computation of the time",
+            "type": "Selection",
+            "options": ["s", "min", "h", "d", "a"],
+            "default": "s",
+            "showIf": [
+                {
+                    "parameter": "input_speed_bool",
+                    "value": true
+                }
+            ]
+        },
+        {
+            "name": "input_acceleration_bool",
+            "title": "Compute acceleration property",
+            "description": "Whether to compute the acceleration property",
+            "type": "Boolean",
+            "default": true,
+            "optional": false
         },
         {
             "name": "input_acceleration_column",
@@ -66,31 +186,41 @@
             "description": "Name to be assigned to the acceleration property",
             "type": "String",
             "default":"acceleration",
-            "optional": true
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "input_acceleration_bool",
+                    "value": true
+                }
+            ]
         },
         {
-            "name": "input_unit_distance",
+            "name": "input_acceleration_unit_distance",
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "dm", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "fathom",
-                "british_ft", "british_yd", "british_chain_sears", "british_link_sears", "sears_yd",
-                "link_sears", "chain_sears", "british_ft_sears_truncated", "british_chain_sears_truncated",
-                "british_chain_benoit", "chain_benoit", "link_benoit", "clarke_yd", "clarke_ft",
-                "clarke_link", "clarke_chain", "british_ft_1936", "gold_coast_ft", "rod", "furlong",
-                "german_m", "survey_in", "survey_ft", "survey_yd", "survey_lk", "survey_ch", "survey_mi",
-                "indian_yd", "indian_ft", "indian_ft_1937", "indian_ft_1962", "indian_ft_1975", "deg"],
+            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
             "default": "m",
-            "optional": true
+            "showIf": [
+                {
+                    "parameter": "input_acceleration_bool",
+                    "value": true
+                }
+            ]
         },
         {
-            "name": "input_unit_time",
+            "name": "input_acceleration_unit_time",
             "title": "Time units",
             "description": "Unit for the computation of the time",
             "type": "Selection",
             "options": ["s", "min", "h", "d", "a"],
             "default": "s",
-            "optional": true
+            "showIf": [
+                {
+                    "parameter": "input_acceleration_bool",
+                    "value": true
+                }
+            ]
         }
     ],
     "outputs": [

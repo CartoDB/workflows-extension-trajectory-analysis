@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION
     input_unit_distance STRING,
     input_unit_time STRING
 )
-RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
+RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING, logs STRING>>
 LANGUAGE python
 OPTIONS (
     entry_point='main',
@@ -16,6 +16,7 @@ OPTIONS (
 )
 AS r"""
 from datetime import timedelta
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -45,12 +46,20 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
-    result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=(input_unit_distance, input_unit_time))
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter('always') 
 
-    result = result.to_point_gdf().reset_index()
-    result['lon'] = result.geometry.x.astype(np.float64)
-    result['lat'] = result.geometry.y.astype(np.float64)
-    result = result.drop(columns=['traj_id', 'geometry'])
+        result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=(input_unit_distance, input_unit_time))
 
-    return result.to_dict(orient='records')
+        result = result.to_point_gdf().reset_index()
+        result['lon'] = result.geometry.x.astype(np.float64)
+        result['lat'] = result.geometry.y.astype(np.float64)
+        result = result.drop(columns=['traj_id', 'geometry'])
+
+        if caught_warnings:
+          result['logs'] = str(caught_warnings[0].message)
+        else:
+          result['logs'] = ''
+
+        return result.to_dict(orient='records')
 """;
