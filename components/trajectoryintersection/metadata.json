@@ -13,6 +13,12 @@
             "type": "Table"
         },
         {
+            "name": "input_table_polygon",
+            "title": "Polygon table",
+            "description": "Table containing the polygon to intersect",
+            "type": "Table"
+        },
+        {
             "name": "traj_id_col",
             "title": "Trajectory ID",
             "description": "Column with the trajectory IDs",
@@ -29,10 +35,41 @@
             "optional": false
         },
         {
-            "name": "input_table_polygon",
-            "title": "Polygon table",
-            "description": "Table containing the polygon to intersect",
-            "type": "Table"
+            "name": "join_type",
+            "title": "Join",
+            "description": "How to join trajectories and polygons",
+            "type": "Selection",
+            "options": ["Key Join", "Cross Join"],
+            "default": "Key Join",
+            "optional": false
+        },
+        {
+            "name": "traj_key_col",
+            "title": "Join Key in Trajectories",
+            "description": "Column to use as key when joining from the Trajectories input",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "join_type",
+                    "value": "Key Join"
+                }
+            ]
+        },
+        {
+            "name": "polygon_key_col",
+            "title": "Join Key in Polygons",
+            "description": "Column to use as key when joining from the Polygon input",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "join_type",
+                    "value": "Key Join"
+                }
+            ]
         },
         {
             "name": "polygon_col",

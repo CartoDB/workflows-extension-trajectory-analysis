@@ -7,9 +7,12 @@
             "tpoints_col": "tpoints",
             "input_table_polygon": "polygon_1",
             "polygon_col": "polygon",
-            "polygon_properties_col": "polygon_properties",            
+            "polygon_properties_col": "polygon_properties",
             "return_polygon_properties":true,
-            "intersection_method":"Segments"
+            "intersection_method":"Segments",
+            "join_type": "Cross Join",
+            "traj_key_col": null,
+            "polygon_key_col": null
         }
     },
     {
@@ -20,9 +23,12 @@
             "tpoints_col": "tpoints",
             "input_table_polygon": "polygon_1",
             "polygon_col": "polygon",
-            "polygon_properties_col": "polygon_properties",            
+            "polygon_properties_col": "polygon_properties",
             "return_polygon_properties":false,
-            "intersection_method":"Points"
+            "intersection_method":"Points",
+            "join_type": "Key Join",
+            "traj_key_col": "key",
+            "polygon_key_col": "key"
         }
     },
     {
@@ -33,9 +39,12 @@
             "tpoints_col": "tpoints",
             "input_table_polygon": "polygon_2",
             "polygon_col": "polygon",
-            "polygon_properties_col": "polygon_properties",            
+            "polygon_properties_col": "polygon_properties",
             "return_polygon_properties":false,
-            "intersection_method":"Points"
+            "intersection_method":"Points",
+            "join_type": "Cross Join",
+            "traj_key_col": null,
+            "polygon_key_col": null
         }
     }
 ]
