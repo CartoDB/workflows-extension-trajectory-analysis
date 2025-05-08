@@ -31,7 +31,7 @@
         {
             "name": "speed_threshold",
             "title": "Speed Threshold",
-            "description": "Maximum speed to consider an outlier",
+            "description": "Maximum speed to consider an outlier. If the resulting trayectory is invalid (e.g. <2 points remaining), the original trajectory is returned together with a warning",
             "type": "Number",
             "optional": false,
             "noDefault": true,
@@ -42,13 +42,7 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "dm", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "fathom",
-                "british_ft", "british_yd", "british_chain_sears", "british_link_sears", "sears_yd",
-                "link_sears", "chain_sears", "british_ft_sears_truncated", "british_chain_sears_truncated",
-                "british_chain_benoit", "chain_benoit", "link_benoit", "clarke_yd", "clarke_ft",
-                "clarke_link", "clarke_chain", "british_ft_1936", "gold_coast_ft", "rod", "furlong",
-                "german_m", "survey_in", "survey_ft", "survey_yd", "survey_lk", "survey_ch", "survey_mi",
-                "indian_yd", "indian_ft", "indian_ft_1937", "indian_ft_1962", "indian_ft_1975", "deg"],
+            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
             "default": "m",
             "optional": true
         },
