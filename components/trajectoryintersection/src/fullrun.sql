@@ -5,8 +5,8 @@ EXECUTE IMMEDIATE FORMAT(
     AS
         WITH polygon_cte AS(
         SELECT
-            * EXCEPT (%s),
-            ST_ASTEXT(%s) AS %s,
+            *,
+            ST_ASTEXT(%s) AS %s_str,
         FROM `%s`
         )
         SELECT
@@ -14,25 +14,29 @@ EXECUTE IMMEDIATE FORMAT(
         @@workflows_temp@@.TRAJECTORY_INTERSECTION(
             %s,
             %s,
-            %s,
-            %s,
-            %s,
+            %s_str,
             '%s'
         ) AS %s
+        %s
         FROM %s
     ''',
     REPLACE(output_table, '`', ''),
-    polygon_col,
     polygon_col, polygon_col,
     REPLACE(input_table_polygon, '`', ''),
     traj_id_col,
     traj_id_col,
     tpoints_col,
     polygon_col,
-    polygon_properties_col,
-    CASE WHEN return_polygon_properties THEN 'TRUE' ELSE 'FALSE' END,
     intersection_method,
     tpoints_col,
+    CASE WHEN return_polygon_properties THEN
+        FORMAT(
+            ', p.* EXCEPT (%s_str)',
+            polygon_col
+        )
+    ELSE
+        ''
+    END,
     CASE WHEN join_type = 'Cross Join' THEN
         FORMAT(
             '`%s` t CROSS JOIN polygon_cte p',

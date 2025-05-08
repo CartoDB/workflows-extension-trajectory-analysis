@@ -80,17 +80,9 @@
             "optional": false
         },
         {
-            "name": "polygon_properties_col",
-            "title": "Polygon properties",
-            "description": "Column with the polygon properties as a JSON-encoded string",
-            "type": "Column",
-            "parent": "input_table_polygon",
-            "optional": false
-        },
-        {
             "name": "return_polygon_properties",
             "title": "Return polygon properties",
-            "description": "Select if the component should also return the polygon properties",
+            "description": "Whether the component should also return the columns in the Polygon input",
             "type": "Boolean",
             "default": false,
             "optional": true
@@ -98,7 +90,7 @@
         {
             "name": "intersection_method",
             "title": "Intersection method",
-            "description": "Select if the component should also return the polygon properties",
+            "description": "Whether to return the individual points or segments",
             "type": "Selection",
             "options": ["Segments", "Points"],
             "default": "Segments",
@@ -109,7 +101,7 @@
         {
             "name": "output_table",
             "title": "Output table",
-            "description": "The table with the simplified trajectories",
+            "description": "The table with the intersected trajectories",
             "type": "Table"
         }
     ]
