@@ -65,16 +65,14 @@ EXECUTE IMMEDIATE FORMAT(
                 %s,
                 %f,
                 %f, %f, %f, %f,
-                %f,
-                '%s'
+                %f
             )
             ''',
             traj_id_col,
             tpoints_col,
             min_speed,
             min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
-            min_length,
-            input_speed_column
+            min_length
         )
     WHEN method = 'Observation Gap' THEN
         FORMAT(
@@ -104,6 +102,23 @@ EXECUTE IMMEDIATE FORMAT(
             traj_id_col,
             tpoints_col,
             valuechange_col,
+            min_length
+        )
+    WHEN method = 'Angle Change' THEN
+        FORMAT(
+            '''
+            @@workflows_temp@@.TRAJECTORY_ANGLECHANGE_SPLITTER(
+                %s,
+                %s,
+                %f,
+                %f,
+                %f
+            )
+            ''',
+            traj_id_col,
+            tpoints_col,
+            min_angle, 
+            min_speed,
             min_length
         )
     END,

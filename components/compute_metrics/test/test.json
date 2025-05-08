@@ -1,17 +1,50 @@
 [
     {
-        "id": "compute_metrics",
+        "id": "compute_metrics_1",
         "inputs": {
             "input_table": "trajectories",
             "input_traj_id_column": "traj_id",
             "input_tpoints_column": "tpoints",
+            "input_distance_bool": true,
             "input_distance_column": "distance",
+            "input_distance_unit_distance":"m",
+            "input_duration_bool":true,
             "input_duration_column":"duration",
+            "input_duration_unit_time":"s",
+            "input_direction_bool":true,
             "input_direction_column":"direction",
+            "input_speed_bool":true,
             "input_speed_column":"speed",
+            "input_speed_unit_distance":"m",
+            "input_speed_unit_time":"s",
+            "input_acceleration_bool":true,
             "input_acceleration_column":"acceleration",
-            "input_unit_distance":"m",
-            "input_unit_time":"s"
+            "input_acceleration_unit_distance":"m",
+            "input_acceleration_unit_time":"s"
+        }
+    },
+    {
+        "id": "compute_metrics_2",
+        "inputs": {
+            "input_table": "trajectories",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "input_distance_bool": true,
+            "input_distance_column": "distance",
+            "input_distance_unit_distance":"km",
+            "input_duration_bool":true,
+            "input_duration_column":"duration",
+            "input_duration_unit_time":"min",
+            "input_direction_bool":false,
+            "input_direction_column":null,
+            "input_speed_bool":false,
+            "input_speed_column":null,
+            "input_speed_unit_distance":null,
+            "input_speed_unit_time":null,
+            "input_acceleration_bool":false,
+            "input_acceleration_column":null,
+            "input_acceleration_unit_distance":null,
+            "input_acceleration_unit_time":null
         }
     }
 ]

@@ -15,7 +15,8 @@ EXECUTE IMMEDIATE FORMAT(
                       s.properties AS properties
                     )
                     ORDER BY s.t
-                ) AS tpoints
+                ) AS tpoints,
+                ANY_VALUE(logs) AS logs
             FROM `%s`,
             UNNEST(
                 @@workflows_temp@@.TRAJECTORY_OUTLIER_CLEANER(
@@ -29,7 +30,8 @@ EXECUTE IMMEDIATE FORMAT(
         )
     SELECT
         input.* EXCEPT ( %s ),
-        cleaned.tpoints AS %s
+        cleaned.tpoints AS %s,
+        cleaned.logs AS logs
     FROM
         `%s` input
     INNER JOIN

@@ -14,7 +14,7 @@ EXECUTE IMMEDIATE FORMAT(
             lon FLOAT64,
             lat FLOAT64,
             t TIMESTAMP,
-            properties JSON
+            properties STRING
             ''',
             input_traj_id_column
         )
@@ -25,11 +25,11 @@ EXECUTE IMMEDIATE FORMAT(
             lon_start FLOAT64,
             lat_start FLOAT64,
             t_start TIMESTAMP,
-            properties_start JSON,
+            properties_start STRING,
             lon_end FLOAT64,
             lat_end FLOAT64,
             t_end TIMESTAMP,
-            properties_end JSON,
+            properties_end STRING,
             geom GEOGRAPHY
             ''',
             input_traj_id_column
