@@ -1,7 +1,7 @@
 {
-    "name": "group_trajectories",
-    "title": "Group Trajectories",
-    "description": "This component takes an input table where the trajectory data are stored with a flat structure and group it by trajectory identifier",
+    "name": "frompoints",
+    "title": "Trajectory From Points",
+    "description": "Convert a table of timestamped points in trajectories.",
     "version": "1.0.0",
     "icon": "component-default.svg",
     "cartoEnvVars": [],
@@ -9,7 +9,7 @@
         {
             "name": "input_table",
             "title": "Input table",
-            "description": "The table to add the column to",
+            "description": "The table with the timestamped points per row",
             "type": "Table"
         },
         {
@@ -19,14 +19,6 @@
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
-        },
-        {
-            "name": "input_tpoints_column",
-            "title": "Trajectory points",
-            "description": "Column to be used to define the trajectory points",
-            "type": "String",
-            "optional": true,
-            "default": "tpoints"
         },
         {
             "name": "input_lon_column",
@@ -53,12 +45,21 @@
             "noDefault": true
         },
         {
-            "name": "input_properties_column",
-            "title": "Properties column",
-            "description": "The name of the column storing other relevant properties as a JSON-encoded string",
+            "name": "input_tpoints_column",
+            "title": "Name for the trajectory points column",
+            "description": "Column to be used to define the trajectory points",
+            "type": "String",
+            "optional": false,
+            "default": "tpoints"
+        },
+        {
+            "name": "input_properties_columns",
+            "title": "Properties columns",
+            "description": "All the columns to be stored as a JSON-encoded string per timestamp",
             "type": "Column",
+            "mode": "multiple",
             "parent": "input_table",
-            "noDefault": true
+            "optional": true
         }
     ],
     "outputs": [
