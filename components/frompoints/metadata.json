@@ -1,6 +1,6 @@
 {
     "name": "frompoints",
-    "title": "Trajectories From Points",
+    "title": "Trajectory From Points",
     "description": "Convert a table of timestamped points in trajectories.",
     "version": "1.0.0",
     "icon": "component-default.svg",
@@ -19,14 +19,6 @@
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
-        },
-        {
-            "name": "input_tpoints_column",
-            "title": "Trajectory points",
-            "description": "Column to be used to define the trajectory points",
-            "type": "String",
-            "optional": true,
-            "default": "tpoints"
         },
         {
             "name": "input_lon_column",
@@ -51,6 +43,14 @@
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
+        },
+        {
+            "name": "input_tpoints_column",
+            "title": "Name for the trajectory points column",
+            "description": "Column to be used to define the trajectory points",
+            "type": "String",
+            "optional": false,
+            "default": "tpoints"
         },
         {
             "name": "input_properties_columns",
