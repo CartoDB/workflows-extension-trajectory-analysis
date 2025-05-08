@@ -4,8 +4,8 @@
     "industry": "TBD",
     "description": "An extension package to handle trajectory data.",
     "icon": "extension-default.svg",
-    "version": "1.0.0",
-    "lastUpdate": "2025-04-08",
+    "version": "1.0.1",
+    "lastUpdate": "2025-05-07",
     "provider": "bigquery",
     "author": {
         "value": "CARTO",
@@ -31,8 +31,8 @@
         }
     ],
     "components": [
-        "group_trajectories",
-        "ungroup_trajectories",
+        "frompoints",
+        "topoints",
         "trajectorysplitter",
         "stopdetector",
         "compute_metrics",
