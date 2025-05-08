@@ -62,7 +62,7 @@
             "title": "Join Key in Polygons",
             "description": "Column to use as key when joining from the Polygon input",
             "type": "Column",
-            "parent": "input_table",
+            "parent": "input_table_polygon",
             "optional": false,
             "showIf": [
                 {
