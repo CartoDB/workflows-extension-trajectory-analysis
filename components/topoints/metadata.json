@@ -3,7 +3,7 @@
     "title": "Trajectory To Points",
     "description": "Convert trajectories to a point-by-point output",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_to_points.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

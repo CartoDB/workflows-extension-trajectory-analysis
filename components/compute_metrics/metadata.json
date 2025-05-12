@@ -3,7 +3,7 @@
     "title": "Compute Trajectory Metrics",
     "description": "Compute basic trajectory metrics, including: distance, duration, direction, speed, and acceleration",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_metrics.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

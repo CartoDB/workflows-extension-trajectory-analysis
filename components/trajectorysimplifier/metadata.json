@@ -3,7 +3,7 @@
     "title": "Simplify Trajectories",
     "description": "Simplify trajectory by reducing the number of points stored without losing any information",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_simplification.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

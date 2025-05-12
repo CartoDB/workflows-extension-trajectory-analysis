@@ -3,7 +3,7 @@
     "title": "Trajectory Analysis",
     "industry": "TBD",
     "description": "An extension package to handle trajectory data.",
-    "icon": "extension-default.svg",
+    "icon": "trajectories_extension.svg",
     "version": "1.0.1",
     "lastUpdate": "2025-05-07",
     "provider": "bigquery",

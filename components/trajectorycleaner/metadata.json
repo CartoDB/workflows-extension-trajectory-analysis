@@ -3,7 +3,7 @@
     "title": "Clean Trajectories",
     "description": "Clean outliers in a trajectory",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_cleaner.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

@@ -3,7 +3,7 @@
     "title": "Detect Stops",
     "description": "Detect stops in a trajectory",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_stop_detector.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

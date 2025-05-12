@@ -3,7 +3,7 @@
     "title": "Intersect Trajectories with a polygon",
     "description": "Check if a trajectory interesect a given polygon and optionally returns the trajectory segments that intersects the given polygon",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_intersection.svg",
     "cartoEnvVars": [],
     "inputs": [
         {
