@@ -43,6 +43,13 @@ def main(
       .set_index('t')
     )
 
+    if gdf.shape[0] <= 1:
+        # Return the original trajectory
+        gdf['lon'] = gdf.geometry.x.astype(np.float64)
+        gdf['lat'] = gdf.geometry.y.astype(np.float64)
+        gdf['logs'] = 'The input DataFrame must have at least two rows.'
+        return gdf.reset_index().to_dict(orient='records')
+
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 

@@ -6,20 +6,20 @@
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "speed_threshold": 120,
-            "input_unit_distance":"m",
-            "input_unit_time":"s"
+            "input_unit_distance":"km",
+            "input_unit_time":"h"
 
         }
     },
     {
         "id": 2,
         "inputs": {
-            "input_table": "trajectories",
+            "input_table": "trajectories_single",
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "speed_threshold": 0,
-            "input_unit_distance":"m",
-            "input_unit_time":"s"
+            "input_unit_distance":"km",
+            "input_unit_time":"h"
 
         }
     }
