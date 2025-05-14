@@ -6,7 +6,7 @@ EXECUTE IMMEDIATE FORMAT(
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     ) AS
         SELECT 
-            %s,
+            input.* EXCEPT (%s),
             ARRAY_AGG(
                 STRUCT(
                   s.lon AS lon,
@@ -15,8 +15,8 @@ EXECUTE IMMEDIATE FORMAT(
                   s.properties AS properties
                 )
                 ORDER BY s.t
-            ) AS tpoints
-        FROM `%s`,
+            ) AS %s
+        FROM `%s` input,
         UNNEST(
             @@workflows_temp@@.TRAJECTORY_METRICS(
                 %s,
@@ -38,7 +38,8 @@ EXECUTE IMMEDIATE FORMAT(
         ORDER BY %s
     ''',
     REPLACE(output_table, '`', ''),
-    input_traj_id_column,
+    input_tpoints_column,
+    input_tpoints_column,
     REPLACE(input_table, '`', ''),
     input_traj_id_column,
     input_tpoints_column,

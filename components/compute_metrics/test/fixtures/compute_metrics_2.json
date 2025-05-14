@@ -1122,6 +1122,17 @@
           "properties": "{\"distance\": 0.041609475709330476, \"duration\": 0.25}"
         }
       ]
+    },
+    {
+      "traj_id": "edge_case_n=1",
+      "tpoints": [
+        {
+          "lon": -8.591256,
+          "lat": 41.162652,
+          "t": "2013-08-07 13:06:43+00:00",
+          "properties": "{\"distance\": null, \"duration\": null}"
+        }
+      ]
     }
   ]
 }

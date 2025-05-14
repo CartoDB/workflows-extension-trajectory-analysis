@@ -48,6 +48,7 @@ def timedelta_to_unit(delta, unit):
     else:
         raise ValueError(f'Unsupported time unit: {unit}')
 
+
 def main(
     traj_id,
     trajectory,
@@ -71,6 +72,9 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
+    if df.shape[0] == 0:
+        return []
+
     # check input metrics
     input_metrics = (input_distance_bool, input_duration_bool, input_direction_bool, input_speed_bool, input_acceleration_bool)
     if not any(input_metrics):
@@ -82,6 +86,29 @@ def main(
     dup_names = [x for x in input_metrics_names if x in col_names]
     if len(dup_names) > 0:
         raise ValueError(f'The following properties already exist: {dup_names}')
+
+    def merge_json(row):
+        properties_json = json.loads(row['properties']) if isinstance(row['properties'], str) else row['properties']
+        other_fields = {
+            input_distance_column: row.get(input_distance_column),
+            input_duration_column: row.get(input_duration_column),
+            input_direction_column: row.get(input_direction_column),
+            input_speed_column: row.get(input_speed_column),
+            input_acceleration_column: row.get(input_acceleration_column),
+        }
+         # Filter out empty (non-computed) metrics
+        other_fields = {key: value for key, value in other_fields.items() if key}
+
+        # Merge properties JSON with the other fields
+        return json.dumps({**properties_json, **other_fields})
+
+    if df.shape[0] <= 1:
+        # Return the original trajectory with empty columns
+        for column in col_names:
+            df[column] = np.nan
+        df['properties'] = df.apply(merge_json, axis=1)
+        df = df[['lon', 'lat', 't', 'properties']]
+        return df.to_dict(orient='records')
 
     # build the GeoDataFrame
     gdf = (
@@ -115,21 +142,6 @@ def main(
         result[input_duration_column] = result[input_duration_column].apply(
             lambda x: timedelta_to_unit(x, input_duration_unit_time) if pd.notna(x) else 0
         )
-
-    def merge_json(row):
-        properties_json = json.loads(row['properties']) if isinstance(row['properties'], str) else row['properties']
-        other_fields = {
-            input_distance_column: row.get(input_distance_column),
-            input_duration_column: row.get(input_duration_column),
-            input_direction_column: row.get(input_direction_column),
-            input_speed_column: row.get(input_speed_column),
-            input_acceleration_column: row.get(input_acceleration_column),
-        }
-         # Filter out empty (non-computed) metrics
-        other_fields = {key: value for key, value in other_fields.items() if key}
-
-        # Merge properties JSON with the other fields
-        return json.dumps({**properties_json, **other_fields})
 
     result['properties'] = result.apply(merge_json, axis=1)
     result = result[['lon', 'lat', 't', 'properties']]
