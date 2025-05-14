@@ -7,7 +7,7 @@ EXECUTE IMMEDIATE FORMAT(
     )
     AS
         SELECT
-            %s,
+            input.* EXCEPT ( %s ),
             p.seg_id,
             ARRAY_AGG(
                 STRUCT(
@@ -17,16 +17,17 @@ EXECUTE IMMEDIATE FORMAT(
                   p.properties AS properties
                 )
                 ORDER BY p.t
-            ) AS tpoints
-        FROM `%s`,
+            ) AS %s
+        FROM `%s` input,
         UNNEST(
             %s
         ) AS p
-        GROUP BY %s, p.seg_id
-        ORDER BY %s, p.seg_id
+        GROUP BY input.%s, p.seg_id
+        ORDER BY input.%s, p.seg_id
     ''',
     REPLACE(output_table, '`', ''),
-    traj_id_col,
+    tpoints_col,
+    tpoints_col,
     REPLACE(input_table, '`', ''),
     CASE WHEN method = 'Stops' THEN
         FORMAT(

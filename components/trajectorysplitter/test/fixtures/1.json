@@ -1031,6 +1031,18 @@
           "properties": "{}"
         }
       ]
+    },
+    {
+      "traj_id": "edge_case_n=1",
+      "seg_id": "edge_case_n=1",
+      "tpoints": [
+        {
+          "lon": -8.591256,
+          "lat": 41.162652,
+          "t": "2013-08-07 13:06:43+00:00",
+          "properties": "{}"
+        }
+      ]
     }
   ]
 }

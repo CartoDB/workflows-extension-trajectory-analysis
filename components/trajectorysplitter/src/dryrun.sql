@@ -2,15 +2,18 @@ EXECUTE IMMEDIATE FORMAT(
     '''
     CREATE TABLE IF NOT EXISTS
         `%s`
-    (
-        %s STRING,
-        seg_id STRING,
-        %s ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
-    ) OPTIONS (
+    OPTIONS (
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    )
+    AS (
+        SELECT
+            input.*,
+            '' AS seg_id
+        FROM
+            `%s` input
+        WHERE FALSE
     );
     ''',
     REPLACE(output_table, '`', ''),
-    traj_id_col,
-    tpoints_col
+    REPLACE(input_table, '`', '')
 );

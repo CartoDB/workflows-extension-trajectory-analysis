@@ -38,6 +38,11 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
@@ -101,6 +106,11 @@ import movingpandas as mpd
 def main(traj_id, trajectory, mode, min_length):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
+
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
 
     # build the GeoDataFrame
     gdf = (
@@ -173,6 +183,11 @@ def main(
 ):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
+
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
 
     # build the GeoDataFrame
     gdf = (
@@ -249,6 +264,11 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
@@ -319,6 +339,11 @@ def main(traj_id, trajectory, valuechange_col, min_length):
     if len(df.dropna()) == 0:
         raise ValueError(f'Specified value-change column {valuechange_col} not found in properties')
 
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
+
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(
@@ -377,6 +402,10 @@ import json
 def main(traj_id, trajectory, min_angle, min_speed, min_length):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
+    if df.shape[0] <= 1:
+        # Return the original trajectory
+        df['seg_id'] = traj_id
+        return df.to_dict(orient='records')
 
     # build the GeoDataFrame
     gdf = (
