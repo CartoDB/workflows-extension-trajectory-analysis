@@ -1,7 +1,10 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE OR REPLACE TABLE
+    CREATE TABLE IF NOT EXISTS
         `%s`
+    OPTIONS (
+        expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    )
     AS
     WITH
         cleaned_cte AS (

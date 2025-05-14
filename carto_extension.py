@@ -646,10 +646,10 @@ def _get_test_results(metadata, component):
             env_vars = json.dumps(test_configuration.get("env_vars", None))
 
             dry_run_params = param_values.copy() + [True, env_vars]
-            dry_run_query = _build_query(workflows_temp, component["procedureName"], dry_run_params)
+            dry_run_query = _build_query(workflows_temp, component["procedureName"], dry_run_params, tables)
 
             full_run_params = param_values.copy() + [False, env_vars]
-            full_run_query = _build_query(workflows_temp, component["procedureName"], full_run_params)
+            full_run_query = _build_query(workflows_temp, component["procedureName"], full_run_params, tables)
 
             # TODO: improve argument passing to _run_query()
             component_results[test_id]["dry"] = _run_query(dry_run_query, component, metadata["provider"], tables)
@@ -659,8 +659,14 @@ def _get_test_results(metadata, component):
 
     return results
 
-def _build_query(workflows_temp, component_name, param_values):
-    return f"""CALL {workflows_temp}.{component_name}(
+def _build_query(workflows_temp, component_name, param_values, outputs):
+    output_sql = "\n".join(
+        f'DROP TABLE IF EXISTS {output_table};'
+        for output_table in outputs.values()
+    )
+    return f"""{output_sql}
+
+    CALL {workflows_temp}.{component_name}(
         {','.join([str(p) if p is not None else 'null' for p in param_values])}
     );"""
 

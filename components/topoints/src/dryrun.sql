@@ -1,9 +1,11 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE OR REPLACE TABLE
+    CREATE TABLE IF NOT EXISTS
         `%s`
     (
         %s
+    ) OPTIONS (
+        expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     );
     ''',
     REPLACE(output_table, '`', ''),

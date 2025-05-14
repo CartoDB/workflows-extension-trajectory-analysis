@@ -1,8 +1,10 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE OR REPLACE TABLE
+    CREATE TABLE IF NOT EXISTS
         `%s`
-    AS
+    OPTIONS (
+        expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    ) AS
         SELECT 
             %s,
             ARRAY_AGG(

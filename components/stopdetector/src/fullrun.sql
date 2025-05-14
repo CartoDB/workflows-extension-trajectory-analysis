@@ -1,8 +1,11 @@
 IF method = "Points" THEN
     EXECUTE IMMEDIATE FORMAT(
         '''
-        CREATE OR REPLACE TABLE
+        CREATE TABLE IF NOT EXISTS
             `%s`
+        OPTIONS (
+            expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        )
         AS
             SELECT
                 %s,
@@ -34,9 +37,11 @@ IF method = "Points" THEN
 ELSEIF method = 'Segments' THEN
     EXECUTE IMMEDIATE FORMAT(
         '''
-        CREATE OR REPLACE TABLE
+        CREATE TABLE IF NOT EXISTS
             `%s`
-        AS
+        OPTIONS (
+            expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        ) AS
             SELECT
                 %s,
                 s.stop_id,
