@@ -7,17 +7,17 @@ EXECUTE IMMEDIATE FORMAT(
     )
     AS
         SELECT
-            %s,
+            input.* EXCEPT ( %s ),
             ARRAY_AGG(
                 STRUCT(
-                s.lon AS lon,
-                s.lat AS lat,
-                TIMESTAMP(s.t) AS t,
-                s.properties AS properties
+                    s.lon AS lon,
+                    s.lat AS lat,
+                    TIMESTAMP(s.t) AS t,
+                    s.properties AS properties
                 )
                 ORDER BY s.t
-            ) AS tpoints
-        FROM `%s`,
+            ) AS %s
+        FROM `%s` input,
         UNNEST(
             @@workflows_temp@@.TRAJECTORY_SIMPLIFIER(
                 %s,
@@ -28,7 +28,8 @@ EXECUTE IMMEDIATE FORMAT(
         GROUP BY %s
     ''',
     REPLACE(output_table, '`', ''),
-    traj_id_col,
+    tpoints_col,
+    tpoints_col,
     REPLACE(input_table, '`', ''),
     traj_id_col,
     tpoints_col,

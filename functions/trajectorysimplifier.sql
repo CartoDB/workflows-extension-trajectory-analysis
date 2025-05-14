@@ -20,6 +20,9 @@ pymeos_initialize()
 
 def main(traj_id, trajectory, rounding_precision):
 
+    if len(trajectory) <= 1:
+        return trajectory
+
     rounding_precision = int(rounding_precision)
     df = pd.DataFrame.from_records(trajectory)
     df['geom'] = df.apply(lambda row: f"POINT ({row['lon']} {row['lat']})", axis=1)

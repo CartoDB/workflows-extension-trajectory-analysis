@@ -35,6 +35,7 @@ def main(
 
     if df.shape[0] <= 1:
         # Return the original trajectory
+        df['logs'] = 'A valid trajectory should have at least two points'
         return df.to_dict(orient='records')
 
     # build the GeoDataFrame
