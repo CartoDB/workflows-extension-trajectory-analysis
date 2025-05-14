@@ -28,7 +28,7 @@
             "intersection_method":"Points",
             "join_type": "Key Join",
             "traj_key_col": "key",
-            "polygon_key_col": "key"
+            "polygon_key_col": "key_poly"
         }
     },
     {

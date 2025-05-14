@@ -8,7 +8,7 @@ EXECUTE IMMEDIATE FORMAT(
     AS (
         WITH
             traj_cte AS (
-                SELECT %s, %s FROM `%s` LIMIT 1
+                SELECT * FROM `%s` LIMIT 1
             ),
             polygon_cte AS (
                 SELECT * FROM `%s` LIMIT 1
@@ -21,7 +21,22 @@ EXECUTE IMMEDIATE FORMAT(
     );
     ''',
     REPLACE(output_table, '`', ''),
-    traj_id_col, tpoints_col, REPLACE(input_table, '`', ''),
+    REPLACE(input_table, '`', ''),
     REPLACE(input_table_polygon, '`', ''),
-    CASE WHEN return_polygon_properties THEN 't.*, p.*' ELSE 't.*' END
+    CASE WHEN return_polygon_properties THEN
+        FORMAT(
+            't.* EXCEPT (%s), p.* %s',
+            traj_id_col,
+            CASE WHEN polygon_key_col IS NOT NULL THEN
+                ' EXCEPT (' || polygon_key_col || ')'
+            ELSE
+                ''
+            END
+        )
+    ELSE
+        FORMAT(
+            't.* EXCEPT (%s)',
+            traj_id_col
+        )
+    END
 );

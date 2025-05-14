@@ -19,6 +19,7 @@ import pandas as pd
 import geopandas as gpd
 import movingpandas as mpd
 import json
+import shapely
 from shapely.wkt import loads
 
 def main(
@@ -27,6 +28,9 @@ def main(
   polygon,
   intersection_method
 ):
+    if not trajectory:
+        return trajectory
+
     point_based = intersection_method == 'Points'
     polygon = loads(polygon)
 
@@ -42,6 +46,12 @@ def main(
       )
       .set_index('t')
     )
+
+    if gdf.shape[0] <= 1:
+        if shapely.intersects(gdf.geometry.iloc[0], polygon):
+            return trajectory
+        else:
+            return []
 
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
