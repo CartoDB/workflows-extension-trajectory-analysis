@@ -23,20 +23,14 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(output_table, '`', ''),
     REPLACE(input_table, '`', ''),
     REPLACE(input_table_polygon, '`', ''),
-    CASE WHEN return_polygon_properties THEN
+    CASE WHEN return_polygon_properties AND polygon_key_col IS NOT NULL THEN
         FORMAT(
-            't.* EXCEPT (%s), p.* %s',
-            traj_id_col,
-            CASE WHEN polygon_key_col IS NOT NULL THEN
-                ' EXCEPT (' || polygon_key_col || ')'
-            ELSE
-                ''
-            END
+            't.* , p.* EXCEPT ( %s )',
+            polygon_key_col
         )
+    WHEN return_polygon_properties AND polygon_key_col IS NULL THEN
+        't.*, p.*'
     ELSE
-        FORMAT(
-            't.* EXCEPT (%s)',
-            traj_id_col
-        )
+        't.*'
     END
 );

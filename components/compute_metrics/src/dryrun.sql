@@ -10,5 +10,5 @@ EXECUTE IMMEDIATE FORMAT(
     );
     ''',
     REPLACE(output_table, '`', ''),
-    REPLACE(input_table, '`', ''),
+    REPLACE(input_table, '`', '')
 );

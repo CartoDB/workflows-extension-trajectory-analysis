@@ -774,7 +774,13 @@ def check_schema(dry_result, full_result) -> bool:
     """Compare two different DataFrames two have the same columns."""
     dry_schema = dry_result.dtypes.astype(str).to_dict()
     full_schema = full_result.dtypes.astype(str).to_dict()
-    return dry_schema.keys() == full_schema.keys()
+    if dry_schema.keys() == full_schema.keys():
+        return True
+    else:
+        if verbose:
+            print(f"{dry_schema.keys()=}")
+            print(f"{full_schema.keys()=}")
+        return False
 
 
 def normalize_json(original, decimal_places=3):
@@ -850,8 +856,6 @@ def capture(component):
                     output_name: output_results.to_dict(orient="records")
                     for output_name, output_results in outputs["full"].items()
                 }
-
-                print(outputs)
 
                 contents = json.dumps(outputs, indent=2, default=str)
                 contents = substitute_keys(contents, dotenv=dotenv)
