@@ -3,7 +3,7 @@
     "title": "Split Trajectories",
     "description": "Split the trajectories in different segments",
     "version": "1.0.0",
-    "icon": "trajectories_extension.svg",
+    "icon": "component-default.svg",
     "cartoEnvVars": [],
     "inputs": [
         {
