@@ -1,0 +1,32 @@
+[
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_position": "positions",
+            "position_col": "geom",
+            "return_position_properties":true,
+            "join_type": "Cross Join",
+            "traj_key_col": null,
+            "position_key_col": null,
+            "distance_output_col": "distance"
+        }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_position": "positions",
+            "position_col": "geom",
+            "return_position_properties":false,
+            "join_type": "Key Join",
+            "traj_key_col": "key",
+            "position_key_col": "key_pos",
+            "distance_output_col": "distance"
+        }
+    }
+]

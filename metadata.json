@@ -39,6 +39,7 @@
         "trajectorycleaner",
         "trajectorysimplifier",
         "get_values_at_timestamp",
-        "trajectoryintersection"
+        "trajectoryintersection",
+        "distancefromtrajectory"
     ]
 }

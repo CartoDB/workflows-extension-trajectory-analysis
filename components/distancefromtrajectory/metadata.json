@@ -1,0 +1,108 @@
+{
+    "name": "distancefromtrajectory",
+    "title": "Distance from Trajectory",
+    "description": "Return the minimum distance from one or more input positions to trajectory.",
+    "version": "1.0.0",
+    "icon": "component-default.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Input table containing the trajectories",
+            "type": "Table"
+        },
+        {
+            "name": "input_table_position",
+            "title": "position table",
+            "description": "Table containing the positions",
+            "type": "Table"
+        },
+        {
+            "name": "traj_id_col",
+            "title": "Trajectory ID",
+            "description": "Column with the trajectory IDs",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "tpoints_col",
+            "title": "Trajectory points",
+            "description": "Column with the trajectory points",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false
+        },
+        {
+            "name": "join_type",
+            "title": "Join",
+            "description": "How to join trajectories and positions",
+            "type": "Selection",
+            "options": ["Key Join", "Cross Join"],
+            "default": "Key Join",
+            "optional": false
+        },
+        {
+            "name": "traj_key_col",
+            "title": "Join Key in Trajectories",
+            "description": "Column to use as key when joining from the Trajectories input",
+            "type": "Column",
+            "parent": "input_table",
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "join_type",
+                    "value": "Key Join"
+                }
+            ]
+        },
+        {
+            "name": "position_key_col",
+            "title": "Join Key in Positions",
+            "description": "Column to use as key when joining from the position input",
+            "type": "Column",
+            "parent": "input_table_position",
+            "optional": false,
+            "showIf": [
+                {
+                    "parameter": "join_type",
+                    "value": "Key Join"
+                }
+            ]
+        },
+        {
+            "name": "position_col",
+            "title": "position geometry",
+            "description": "Column with the position geometry",
+            "type": "Column",
+            "parent": "input_table_position",
+            "optional": false
+        },
+        {
+            "name": "return_position_properties",
+            "title": "Return position properties",
+            "description": "Whether the component should also return the columns in the position input",
+            "type": "Boolean",
+            "default": false,
+            "optional": true
+        },
+        {
+            "name": "distance_output_col",
+            "title": "Distance column name",
+            "description": "Name to use for the output column containing the distances",
+            "type": "String",
+            "default": "distance",
+            "optional": false
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the computed distances",
+            "type": "Table"
+        }
+    ]
+}
+ 
