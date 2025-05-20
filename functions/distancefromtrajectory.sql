@@ -3,7 +3,8 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
-    position STRING
+    position STRING,
+    distance_from STRING
 )
 RETURNS FLOAT64
 LANGUAGE python
@@ -21,9 +22,10 @@ import json
 import shapely
 
 def main(
-  traj_id,
-  trajectory,
-  position,
+    traj_id,
+    trajectory,
+    position,
+    distance_from,
 ):
     if not trajectory:
         return None
@@ -44,10 +46,11 @@ def main(
       .set_index('t')
     )
 
-    if gdf.shape[0] <= 1:
-        # return the distance to the only point
+    if gdf.shape[0] <= 1 or distance_from == 'First Point':
         return shapely.distance(position, gdf.iloc[0].geometry)
-    else:
+    elif distance_from == 'Last Point':
+        return shapely.distance(position, gdf.iloc[-1].geometry)
+    elif distance_from == 'Nearest Point':
         # build the Trajectory object
         traj = mpd.Trajectory(gdf, traj_id)
         return traj.distance(other=position)

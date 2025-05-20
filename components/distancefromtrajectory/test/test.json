@@ -11,6 +11,7 @@
             "join_type": "Cross Join",
             "traj_key_col": null,
             "position_key_col": null,
+            "distance_from": "Nearest Point",
             "distance_output_col": "distance"
         }
     },
@@ -22,10 +23,43 @@
             "tpoints_col": "tpoints",
             "input_table_position": "positions",
             "position_col": "geom",
+            "return_position_properties":true,
+            "join_type": "Cross Join",
+            "traj_key_col": null,
+            "position_key_col": null,
+            "distance_from": "First Point",
+            "distance_output_col": "distance"
+        }
+    },
+    {
+        "id": 3,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_position": "positions",
+            "position_col": "geom",
+            "return_position_properties":true,
+            "join_type": "Cross Join",
+            "traj_key_col": null,
+            "position_key_col": null,
+            "distance_from": "Last Point",
+            "distance_output_col": "distance"
+        }
+    },
+    {
+        "id": 4,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "input_table_position": "positions",
+            "position_col": "geom",
             "return_position_properties":false,
             "join_type": "Key Join",
             "traj_key_col": "key",
             "position_key_col": "key_pos",
+            "distance_from": "Nearest Point",
             "distance_output_col": "distance"
         }
     }

@@ -18,7 +18,8 @@ EXECUTE IMMEDIATE FORMAT(
             @@workflows_temp@@.DISTANCE_FROM_TRAJECTORY(
                 %s,
                 %s,
-                %s_str
+                %s_str,
+                '%s'
             ) AS %s,
             %s
         FROM
@@ -31,6 +32,7 @@ EXECUTE IMMEDIATE FORMAT(
     traj_id_col,
     tpoints_col,
     position_col,
+    distance_from,
     distance_output_col,
     CASE WHEN return_position_properties THEN
         FORMAT(

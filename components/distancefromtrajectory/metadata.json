@@ -88,6 +88,15 @@
             "optional": true
         },
         {
+            "name": "distance_from",
+            "title": "Distance From",
+            "description": "Distance from which point in the trajectory",
+            "type": "Selection",
+            "options": ["Nearest Point", "First Point", "Last Point"],
+            "default": "Nearest Point",
+            "optional": false
+        },
+        {
             "name": "distance_output_col",
             "title": "Distance column name",
             "description": "Name to use for the output column containing the distances",
