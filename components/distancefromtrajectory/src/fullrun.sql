@@ -19,6 +19,7 @@ EXECUTE IMMEDIATE FORMAT(
                 %s,
                 %s,
                 %s_str,
+                '%s',
                 '%s'
             ) AS %s,
             %s
@@ -33,6 +34,7 @@ EXECUTE IMMEDIATE FORMAT(
     tpoints_col,
     position_col,
     distance_from,
+    units,
     distance_output_col,
     CASE WHEN return_position_properties THEN
         FORMAT(

@@ -4,7 +4,8 @@ CREATE OR REPLACE FUNCTION
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     position STRING,
-    distance_from STRING
+    distance_from STRING,
+    units STRING
 )
 RETURNS FLOAT64
 LANGUAGE python
@@ -21,11 +22,14 @@ import movingpandas as mpd
 import json
 import shapely
 
+from movingpandas.unit_utils import get_conversion
+
 def main(
     traj_id,
     trajectory,
     position,
     distance_from,
+    units,
 ):
     if not trajectory:
         return None
@@ -47,11 +51,14 @@ def main(
     )
 
     if gdf.shape[0] <= 1 or distance_from == 'First Point':
-        return shapely.distance(position, gdf.iloc[0].geometry)
+        distance = shapely.distance(position, gdf.iloc[0].geometry)
+        conversion = get_conversion(units, "degree")  # 'degree' is the EPSG:4326 unit
+        return distance / conversion.distance
     elif distance_from == 'Last Point':
-        return shapely.distance(position, gdf.iloc[-1].geometry)
+        distance = shapely.distance(position, gdf.iloc[-1].geometry)
+        conversion = get_conversion(units, "degree")  # 'degree' is the EPSG:4326 unit
+        return distance / conversion.distance
     elif distance_from == 'Nearest Point':
-        # build the Trajectory object
         traj = mpd.Trajectory(gdf, traj_id)
         return traj.distance(other=position)
 """;

@@ -73,7 +73,7 @@
         },
         {
             "name": "position_col",
-            "title": "position geometry",
+            "title": "Position geometry",
             "description": "Column with the position geometry",
             "type": "Column",
             "parent": "input_table_position",
@@ -89,7 +89,7 @@
         },
         {
             "name": "distance_from",
-            "title": "Distance From",
+            "title": "Distance from",
             "description": "Distance from which point in the trajectory",
             "type": "Selection",
             "options": ["Nearest Point", "First Point", "Last Point"],
@@ -103,6 +103,14 @@
             "type": "String",
             "default": "distance",
             "optional": false
+        },
+        {
+            "name": "units",
+            "title": "Distance units",
+            "description": "Unit for the computation of the distance",
+            "type": "Selection",
+            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "default": "m"
         }
     ],
     "outputs": [
