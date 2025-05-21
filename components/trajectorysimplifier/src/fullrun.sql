@@ -22,6 +22,7 @@ EXECUTE IMMEDIATE FORMAT(
             @@workflows_temp@@.TRAJECTORY_SIMPLIFIER(
                 %s,
                 %s,
+                %f,
                 %f
             )
         ) AS s
@@ -33,6 +34,7 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(input_table, '`', ''),
     traj_id_col,
     tpoints_col,
+    tolerance,
     rounding_precision,
     traj_id_col
 );

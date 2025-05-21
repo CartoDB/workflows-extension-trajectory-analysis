@@ -3,6 +3,7 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING, 
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
+    tolerance FLOAT64,
     rounding_precision FLOAT64
 )
 RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
@@ -18,7 +19,7 @@ import datetime
 import shapely.wkt
 pymeos_initialize()
 
-def main(traj_id, trajectory, rounding_precision):
+def main(traj_id, trajectory, tolerance, rounding_precision):
 
     if len(trajectory) <= 1:
         return trajectory
@@ -52,6 +53,12 @@ def main(traj_id, trajectory, rounding_precision):
         )
         .rename({"instant": "trajectory"}, axis=1)
     )
+
+    if tolerance:
+        trajectories["trajectory"] = trajectories.trajectory.apply(
+            lambda tr: tr.simplify_douglas_peucker(tolerance, synchronized=True)
+        )
+
     trajectory = trajectories["trajectory"].values[0]
     geom = [shapely.wkt.dumps(point) for point in trajectory.values()]
     t = [time.strftime("%Y%m%d%H%M%S") for time in trajectory.timestamps()]
@@ -59,8 +66,8 @@ def main(traj_id, trajectory, rounding_precision):
     result = pd.DataFrame({
         'geom': geom,
         't': pd.to_datetime(t, format='%Y%m%d%H%M%S')
-
     })
+
     result['t'] = result['t'].dt.tz_localize(None)
     result[['lon', 'lat']] = result['geom'].str.extract(r'POINT \(([-\d\.]+) ([-\d\.]+)\)').astype(float)
     result['lon_rounded'] = result['lon'].round(rounding_precision)

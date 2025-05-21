@@ -5,6 +5,17 @@
             "input_table": "trajectories",
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
+            "tolerance": 0,
+            "rounding_precision":10
+        }
+    },
+    {
+        "id": 2,
+        "inputs": {
+            "input_table": "trajectories",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "tolerance": 10,
             "rounding_precision":10
         }
     }

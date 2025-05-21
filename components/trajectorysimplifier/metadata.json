@@ -29,6 +29,14 @@
             "optional": false
         },
         {
+            "name": "tolerance",
+            "title": "Tolerance",
+            "description": "Tolerance to use when simplifying the route",
+            "type": "Number",
+            "default": 0,
+            "optional": true
+        },
+        {
             "name": "rounding_precision",
             "title": "Rounding precision",
             "description": "Decimal precision to be used when rounding the ",
