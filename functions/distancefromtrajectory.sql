@@ -21,7 +21,9 @@ import geopandas as gpd
 import movingpandas as mpd
 import json
 import shapely
+import math
 
+from pyproj import Transformer
 from movingpandas.unit_utils import get_conversion
 
 def main(
@@ -34,31 +36,40 @@ def main(
     if not trajectory:
         return None
 
-    # Load the position as a geometry
+    # Load the position as a geometry in World Mercator
     position = shapely.wkt.loads(position)
+    latitude_degrees = position.y  # Get latitude before transformation
+    transformer = Transformer.from_crs('EPSG:4326', 'EPSG:3395', always_xy=True)
+    position = shapely.Point(*transformer.transform(position.x, position.y))
+
+    # Compute the correction factor
+    latitude_radians = math.radians(latitude_degrees)
+    correction_factor = math.cos(latitude_radians)
 
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
     # build the GeoDataFrame
     gdf = (
-      gpd.GeoDataFrame(
-        df[['t', 'properties']],
-        geometry=gpd.points_from_xy(df.lon, df.lat),
-        crs=4326
-      )
-      .set_index('t')
+        gpd.GeoDataFrame(
+            df[['t', 'properties']],
+            geometry=gpd.points_from_xy(df.lon, df.lat),
+            crs=4326
+        )
+        .set_index('t')
+        .to_crs('EPSG:3395')  # Reproject to Web Mercator
     )
 
+
     if gdf.shape[0] <= 1 or distance_from == 'First Point':
-        distance = shapely.distance(position, gdf.iloc[0].geometry)
-        conversion = get_conversion(units, "degree")  # 'degree' is the EPSG:4326 unit
-        return distance / conversion.distance
+        distance = gdf.iloc[0].geometry.distance(position)
+        conversion = get_conversion(units, 'm')  # 'degree' is the EPSG:3395 unit
+        return distance * correction_factor / conversion.distance
     elif distance_from == 'Last Point':
-        distance = shapely.distance(position, gdf.iloc[-1].geometry)
-        conversion = get_conversion(units, "degree")  # 'degree' is the EPSG:4326 unit
-        return distance / conversion.distance
+        distance = gdf.iloc[-1].geometry.distance(position)
+        conversion = get_conversion(units, 'm')  # 'degree' is the EPSG:3395 unit
+        return distance * correction_factor / conversion.distance
     elif distance_from == 'Nearest Point':
         traj = mpd.Trajectory(gdf, traj_id)
-        return traj.distance(other=position)
+        return traj.distance(other=position, units=units) * correction_factor
 """;
