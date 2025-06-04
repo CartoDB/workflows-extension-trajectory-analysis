@@ -141,7 +141,9 @@ def main(
         )
     )
 
-    
+    if not result:
+        return []
+
     result = result.to_point_gdf().reset_index()
     result['lon'] = result.geometry.x.astype(np.float64)
     result['lat'] = result.geometry.y.astype(np.float64)
