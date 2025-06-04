@@ -21,23 +21,15 @@ EXECUTE IMMEDIATE FORMAT(
                 %s_str,
                 '%s'
             ) AS %s,
-            %s
         FROM
             %s
     ''',
     REPLACE(output_table, '`', ''),
     polygon_col, polygon_col,
     REPLACE(input_table_polygon, '`', ''),
-    traj_id_col,
-    traj_id_col,
-    tpoints_col,
-    polygon_col,
-    intersection_method,
-    tpoints_col,
     CASE WHEN return_polygon_properties THEN
         FORMAT(
-            't.* EXCEPT (%s, %s), p.* EXCEPT (%s_str %s)',
-            traj_id_col,
+            't.* EXCEPT (%s), p.* EXCEPT (%s_str %s)',
             tpoints_col,
             polygon_col,
             CASE WHEN polygon_key_col IS NOT NULL THEN
@@ -48,11 +40,15 @@ EXECUTE IMMEDIATE FORMAT(
         )
     ELSE
         FORMAT(
-            't.* EXCEPT (%s, %s)',
-            traj_id_col,
+            't.* EXCEPT (%s)',
             tpoints_col
         )
     END,
+    traj_id_col,
+    tpoints_col,
+    polygon_col,
+    intersection_method,
+    tpoints_col,
     CASE WHEN join_type = 'Cross Join' THEN
         FORMAT(
             '`%s` t CROSS JOIN polygon_cte p',
