@@ -24,6 +24,7 @@
             "description": "Column with the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
+            "noDefault": "true",
             "optional": false
         },
         {
@@ -32,6 +33,7 @@
             "description": "Column with the trajectory points",
             "type": "Column",
             "parent": "input_table",
+            "noDefault": "true",
             "optional": false
         },
         {
@@ -50,6 +52,7 @@
             "type": "Column",
             "parent": "input_table",
             "optional": false,
+            "dataType": ["number", "string"],
             "showIf": [
                 {
                     "parameter": "join_type",
@@ -64,6 +67,7 @@
             "type": "Column",
             "parent": "input_table_position",
             "optional": false,
+            "dataType": ["number", "string"],
             "showIf": [
                 {
                     "parameter": "join_type",
@@ -77,6 +81,7 @@
             "description": "Column with the position geometry",
             "type": "Column",
             "parent": "input_table_position",
+            "dataType": ["geometry"],
             "optional": false
         },
         {
