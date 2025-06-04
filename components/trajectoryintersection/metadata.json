@@ -82,7 +82,7 @@
             "type": "Column",
             "parent": "input_table_polygon",
             "optional": false,
-            "dataType": ["geometry"],
+            "dataType": ["geometry"]
         },
         {
             "name": "return_polygon_properties",
