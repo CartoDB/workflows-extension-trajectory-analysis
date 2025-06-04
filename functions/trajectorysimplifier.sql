@@ -37,7 +37,7 @@ def main(traj_id, trajectory, tolerance, rounding_precision):
     if gpd['t'].dt.tz is None:
         gpd['t'] = gpd['t'].dt.tz_localize('UTC')
     gpd['t'] = gpd['t'].dt.tz_convert('UTC')
-    gpd = gpd.sort_values(by='t')
+    gpd = gpd.drop_duplicates(subset=['t']).sort_values(by='t')
  
     gpd['instant'] = gpd.apply(
         lambda row: TGeogPointInst(string=f'{row["geom"]}@{row["t"]}'),
@@ -56,7 +56,10 @@ def main(traj_id, trajectory, tolerance, rounding_precision):
 
     if tolerance:
         trajectories["trajectory"] = trajectories.trajectory.apply(
-            lambda tr: tr.simplify_douglas_peucker(tolerance, synchronized=True)
+            lambda tr: tr.simplify_douglas_peucker(
+                tolerance / 111320,  # Converting from meters to degrees
+                synchronized=True
+            )
         )
 
     trajectory = trajectories["trajectory"].values[0]
