@@ -3,10 +3,8 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
-    min_duration_sec FLOAT64,
-    min_duration_min FLOAT64,
-    min_duration_hour FLOAT64,
-    min_duration_day FLOAT64,
+    min_duration FLOAT64,
+    duration_unit STRING,
     max_diameter FLOAT64,
     min_length FLOAT64
 )
@@ -28,10 +26,8 @@ import movingpandas as mpd
 def main(
     traj_id,
     trajectory,
-    min_duration_sec,
-    min_duration_min,
-    min_duration_hour,
-    min_duration_day,
+    min_duration,
+    duration_unit,
     max_diameter,
     min_length
 ):
@@ -56,14 +52,12 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
+    kwargs = {duration_unit: min_duration}
+    duration_td = timedelta(**kwargs)
+    
     result = mpd.StopSplitter(traj).split(
         max_diameter=max_diameter,
-        min_duration=timedelta(
-            days=min_duration_day,
-            hours=min_duration_hour,
-            minutes=min_duration_min,
-            seconds=min_duration_sec,
-        ),
+        min_duration=duration_td,
         min_length=min_length
     )
 
@@ -149,10 +143,8 @@ CREATE OR REPLACE FUNCTION
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     min_speed FLOAT64,
-    min_duration_sec FLOAT64,
-    min_duration_min FLOAT64,
-    min_duration_hour FLOAT64,
-    min_duration_day FLOAT64,
+    min_duration FLOAT64,
+    duration_unit STRING,
     min_length FLOAT64
 )
 RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
@@ -175,10 +167,8 @@ def main(
     traj_id,
     trajectory,
     min_speed,
-    min_duration_sec,
-    min_duration_min,
-    min_duration_hour,
-    min_duration_day,
+    min_duration,
+    duration_unit,
     min_length
 ):
     # build the DataFrame
@@ -202,14 +192,12 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
+    kwargs = {duration_unit: min_duration}
+    duration_td = timedelta(**kwargs)
+    
     result = mpd.SpeedSplitter(traj).split(
         speed=min_speed,
-        duration=timedelta(
-            days=min_duration_day,
-            hours=min_duration_hour,
-            minutes=min_duration_min,
-            seconds=min_duration_sec,
-        ),
+        duration=duration_td,
         min_length=min_length
     )
 
@@ -231,10 +219,8 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
-    min_duration_sec FLOAT64,
-    min_duration_min FLOAT64,
-    min_duration_hour FLOAT64,
-    min_duration_day FLOAT64,
+    min_duration FLOAT64,
+    duration_unit STRING,
     min_length FLOAT64
 )
 RETURNS ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
@@ -255,10 +241,8 @@ import movingpandas as mpd
 def main(
     traj_id,
     trajectory,
-    min_duration_sec,
-    min_duration_min,
-    min_duration_hour,
-    min_duration_day,
+    min_duration,
+    duration_unit,
     min_length
 ):
     # build the DataFrame
@@ -282,13 +266,11 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
+    kwargs = {duration_unit: min_duration}
+    duration_td = timedelta(**kwargs)
+    
     result = mpd.ObservationGapSplitter(traj).split(
-        gap=timedelta(
-            days=min_duration_day,
-            hours=min_duration_hour,
-            minutes=min_duration_min,
-            seconds=min_duration_sec,
-        ),
+        gap=duration_td,
         min_length=min_length
     )
 

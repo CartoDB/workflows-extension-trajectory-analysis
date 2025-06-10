@@ -35,14 +35,14 @@ EXECUTE IMMEDIATE FORMAT(
             @@workflows_temp@@.TRAJECTORY_STOP_SPLITTER(
                 %s,
                 %s,
-                %f, %f, %f, %f,
+                %f, '%s',
                 %f,
                 %f
             )
             ''',
             traj_id_col,
             tpoints_col,
-            min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+            min_duration, duration_unit,
             max_diameter,
             min_length
         )
@@ -68,7 +68,7 @@ EXECUTE IMMEDIATE FORMAT(
                 %s,
                 %s,
                 %f,
-                %f, %f, %f, %f,
+                %f, '%s',
                 %f
             )
             ''',
