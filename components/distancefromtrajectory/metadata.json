@@ -3,7 +3,7 @@
     "title": "Distance from Trajectory",
     "description": "Return the minimum distance from one or more input positions to trajectory.",
     "version": "1.0.0",
-    "icon": "component-default.svg",
+    "icon": "trajectory_get_distance_from_position.svg",
     "cartoEnvVars": [],
     "inputs": [
         {

@@ -1,6 +1,6 @@
 {
     "name": "topoints",
-    "title": "Trajectory To Points",
+    "title": "Trajectory to Points",
     "description": "Convert trajectories to a point-by-point output",
     "version": "1.0.0",
     "icon": "trajectory_to_points.svg",

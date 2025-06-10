@@ -1,4 +1,4 @@
-# Trajectory From Points
+# Trajectory from Points
 
 
 ## Description

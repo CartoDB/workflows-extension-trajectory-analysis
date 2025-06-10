@@ -1,6 +1,6 @@
 {
     "name": "frompoints",
-    "title": "Trajectory From Points",
+    "title": "Trajectory from Points",
     "description": "Convert a table of timestamped points in trajectories.",
     "version": "1.0.0",
     "icon": "trajectory_from_points.svg",

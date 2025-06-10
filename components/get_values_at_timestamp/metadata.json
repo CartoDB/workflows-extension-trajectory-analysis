@@ -1,6 +1,6 @@
 {
     "name": "get_values_at_timestamp",
-    "title": "Get Position At Timestamp",
+    "title": "Get Position at Timestamp",
     "description": "Retunr the interpolated positions at the time closest to the provided timestamp",
     "version": "1.0.0",
     "icon": "trajectory_intersection-1.svg",

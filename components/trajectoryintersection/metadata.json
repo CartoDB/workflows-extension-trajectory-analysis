@@ -1,7 +1,7 @@
 {
     "name": "trajectoryintersection",
-    "title": "Intersect Trajectories with a polygon",
-    "description": "Check if a trajectory interesect a given polygon and optionally returns the trajectory segments that intersects the given polygon",
+    "title": "Intersect Trajectories",
+    "description": "Return the trajectory segments that intersect a given polygon",
     "version": "1.0.0",
     "icon": "trajectory_intersection.svg",
     "cartoEnvVars": [],
