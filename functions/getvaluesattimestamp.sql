@@ -3,12 +3,7 @@ CREATE OR REPLACE FUNCTION
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
-    t_at_year FLOAT64, 
-    t_at_month FLOAT64, 
-    t_at_day FLOAT64, 
-    t_at_hour FLOAT64, 
-    t_at_minute FLOAT64, 
-    t_at_second FLOAT64
+    timestamp_str STRING
 )
 RETURNS STRUCT<t TIMESTAMP, geom STRING>
 LANGUAGE python
@@ -28,15 +23,10 @@ from shapely.wkt import dumps
 def main(
     traj_id,
     trajectory,
-    t_at_year,
-    t_at_month,
-    t_at_day,
-    t_at_hour,
-    t_at_minute,
-    t_at_second
+    timestamp_str
 ):
 
-    t_at = datetime(int(t_at_year), int(t_at_month), int(t_at_day), int(t_at_hour), int(t_at_minute), int(t_at_second), tzinfo=None)
+    t_at = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
 
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)

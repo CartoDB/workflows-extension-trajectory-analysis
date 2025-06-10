@@ -31,40 +31,11 @@
             "optional": false
         },
         {
-            "name": "t_at_year",
-            "title": "Year",
-            "description": "The year of the provided timestamp",
-            "type": "Number"
-        },
-        {
-            "name": "t_at_month",
-            "title": "Month",
-            "description": "The month of the provided timestamp",
-            "type": "Number"
-        },
-        {
-            "name": "t_at_day",
-            "title": "Day",
-            "description": "The day of the provided timestamp",
-            "type": "Number"
-        },
-        {
-            "name": "t_at_hour",
-            "title": "Hour",
-            "description": "The hour of the provided timestamp",
-            "type": "Number"
-        },
-        {
-            "name": "t_at_minute",
-            "title": "Minute",
-            "description": "The minute of the provided timestamp",
-            "type": "Number"
-        },
-        {
-            "name": "t_at_second",
-            "title": "Second",
-            "description": "The second of the provided timestamp",
-            "type": "Number"
+            "name": "timestamp",
+            "title": "Timestamp",
+            "description": "The timestamp to get the position at",
+            "type": "String",
+            "placeholder": "YYYY-MM-DDTHH:MM:SSZ"
         }
     ],
     "outputs": [
