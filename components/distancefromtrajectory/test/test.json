@@ -2,10 +2,10 @@
     {
         "id": 1,
         "inputs": {
+            "input_table_position": "positions",
             "input_table": "trajectories",
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
-            "input_table_position": "positions",
             "position_col": "geom",
             "return_position_properties":true,
             "join_type": "Cross Join",

@@ -7,15 +7,15 @@
     "cartoEnvVars": [],
     "inputs": [
         {
-            "name": "input_table",
-            "title": "Input table",
-            "description": "Input table containing the trajectories",
+            "name": "input_table_position",
+            "title": "Position table",
+            "description": "Table containing the positions",
             "type": "Table"
         },
         {
-            "name": "input_table_position",
-            "title": "position table",
-            "description": "Table containing the positions",
+            "name": "input_table",
+            "title": "Trajectories table",
+            "description": "Input table containing the trajectories",
             "type": "Table"
         },
         {
