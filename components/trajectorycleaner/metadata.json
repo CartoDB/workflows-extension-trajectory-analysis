@@ -36,7 +36,7 @@
             "description": "Maximum speed to consider an outlier. If the resulting trayectory is invalid (e.g. <2 points remaining), the original trajectory is returned together with a warning",
             "type": "Number",
             "optional": false,
-            "noDefault": true,
+            "default": 100,
             "min": 0
         },
         {
