@@ -4,10 +4,8 @@ CREATE OR REPLACE FUNCTION
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     max_diameter FLOAT64,
-    min_duration_sec FLOAT64,
-    min_duration_min FLOAT64,
-    min_duration_hour FLOAT64,
-    min_duration_day FLOAT64
+    min_duration FLOAT64,
+    duration_unit STRING
 )
 RETURNS ARRAY<STRUCT<stop_id STRING, geometry STRING, start_time TIMESTAMP, end_time TIMESTAMP, duration_s FLOAT64>>
 LANGUAGE python
@@ -28,10 +26,8 @@ def main(
     traj_id,
     trajectory,
     max_diameter,
-    min_duration_sec,
-    min_duration_min,
-    min_duration_hour,
-    min_duration_day,
+    min_duration,
+    duration_unit,
 ):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
@@ -53,16 +49,15 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
+    # Convert duration to timedelta
+    kwargs = {duration_unit: min_duration}
+    duration_td = timedelta(**kwargs)
+
     result = (
         mpd.TrajectoryStopDetector(traj)
         .get_stop_points(
             max_diameter=max_diameter,
-            min_duration=timedelta(
-                days=min_duration_day,
-                hours=min_duration_hour,
-                minutes=min_duration_min,
-                seconds=min_duration_sec,
-            ),
+            min_duration=duration_td,
         )
     )
 
@@ -79,10 +74,8 @@ CREATE OR REPLACE FUNCTION
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     max_diameter FLOAT64,
-    min_duration_sec FLOAT64,
-    min_duration_min FLOAT64,
-    min_duration_hour FLOAT64,
-    min_duration_day FLOAT64
+    min_duration FLOAT64,
+    duration_unit STRING
 )
 RETURNS ARRAY<STRUCT<stop_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
@@ -103,10 +96,8 @@ def main(
     traj_id,
     trajectory,
     max_diameter,
-    min_duration_sec,
-    min_duration_min,
-    min_duration_hour,
-    min_duration_day,
+    min_duration,
+    duration_unit,
 ):
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
@@ -128,16 +119,15 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
+    # Convert duration to timedelta
+    kwargs = {duration_unit: min_duration}
+    duration_td = timedelta(**kwargs)
+
     result = (
         mpd.TrajectoryStopDetector(traj)
         .get_stop_segments(
             max_diameter=max_diameter,
-            min_duration=timedelta(
-                days=min_duration_day,
-                hours=min_duration_hour,
-                minutes=min_duration_min,
-                seconds=min_duration_sec,
-            ),
+            min_duration=duration_td,
         )
     )
 

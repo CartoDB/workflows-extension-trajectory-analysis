@@ -40,39 +40,21 @@
             "optional": false
         },
         {
-            "name": "min_duration_sec",
-            "title": "Minimum stop (seconds)",
-            "description": "Seconds part of the minimum stop duration",
+            "name": "min_duration",
+            "title": "Minimum stop duration",
+            "description": "Minimum duration for a stop",
             "type": "Number",
             "min": 0,
-            "default": 0,
+            "default": 300,
             "optional": false
         },
         {
-            "name": "min_duration_min",
-            "title": "Minimum stop (minutes)",
-            "description": "Minutes part of the minimum stop duration",
-            "type": "Number",
-            "min": 0,
-            "default": 0,
-            "optional": false
-        },
-        {
-            "name": "min_duration_hour",
-            "title": "Minimum stop (hours)",
-            "description": "Hours part of the minimum stop duration",
-            "type": "Number",
-            "min": 0,
-            "default": 0,
-            "optional": false
-        },
-        {
-            "name": "min_duration_day",
-            "title": "Minimum stop (days)",
-            "description": "Days part of the minimum stop duration",
-            "type": "Number",
-            "min": 0,
-            "default": 0,
+            "name": "duration_unit",
+            "title": "Duration unit",
+            "description": "Unit for the minimum stop duration",
+            "type": "Selection",
+            "options": ["seconds", "minutes", "hours", "days"],
+            "default": "seconds",
             "optional": false
         },
         {

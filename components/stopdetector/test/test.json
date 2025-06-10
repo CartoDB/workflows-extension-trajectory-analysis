@@ -7,10 +7,8 @@
             "tpoints_col": "tpoints",
             "method": "Points",
             "max_diameter": 30,
-            "min_duration_sec": 30,
-            "min_duration_min": 0,
-            "min_duration_hour": 0,
-            "min_duration_day": 0
+            "min_duration": 30,
+            "duration_unit": "seconds"
         }
     },
     {
@@ -21,10 +19,8 @@
             "tpoints_col": "tpoints",
             "method": "Segments",
             "max_diameter": 30,
-            "min_duration_sec": 30,
-            "min_duration_min": 0,
-            "min_duration_hour": 0,
-            "min_duration_day": 0
+            "min_duration": 30,
+            "duration_unit": "seconds"
         }
     }
 ]

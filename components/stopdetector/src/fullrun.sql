@@ -20,7 +20,7 @@ IF method = "Points" THEN
                     %s,
                     %s,
                     %f,
-                    %f, %f, %f, %f
+                    %f, '%s'
                 )
             ) AS s
             ORDER BY %s, s.stop_id
@@ -31,7 +31,7 @@ IF method = "Points" THEN
         traj_id_col,
         tpoints_col,
         max_diameter,
-        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+        min_duration, duration_unit,
         traj_id_col
     );
 ELSEIF method = 'Segments' THEN
@@ -60,7 +60,7 @@ ELSEIF method = 'Segments' THEN
                     %s,
                     %s,
                     %f,
-                    %f, %f, %f, %f
+                    %f, '%s'
                 )
             ) AS s
             GROUP BY %s, s.stop_id
