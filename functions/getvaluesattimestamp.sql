@@ -26,7 +26,7 @@ def main(
     timestamp_str
 ):
 
-    t_at = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+    t_at = datetime.fromisoformat(timestamp_str.replace('Z', '')).replace(tzinfo=None)
 
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)

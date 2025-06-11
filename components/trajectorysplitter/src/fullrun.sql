@@ -75,7 +75,7 @@ EXECUTE IMMEDIATE FORMAT(
             traj_id_col,
             tpoints_col,
             min_speed,
-            min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+            min_duration, duration_unit,
             min_length
         )
     WHEN method = 'Observation Gap' THEN
@@ -84,13 +84,13 @@ EXECUTE IMMEDIATE FORMAT(
             @@workflows_temp@@.TRAJECTORY_OBSERVATION_SPLITTER(
                 %s,
                 %s,
-                %f, %f, %f, %f,
+                %f, '%s',
                 %f
             )
             ''',
             traj_id_col,
             tpoints_col,
-            min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+            min_duration, duration_unit,
             min_length
         )
     WHEN method = 'Value Change' THEN

@@ -72,7 +72,7 @@ ELSEIF method = 'Segments' THEN
         traj_id_col,
         tpoints_col,
         max_diameter,
-        min_duration_sec, min_duration_min, min_duration_hour, min_duration_day,
+        min_duration, duration_unit,
         traj_id_col, traj_id_col
     );
 END IF;
