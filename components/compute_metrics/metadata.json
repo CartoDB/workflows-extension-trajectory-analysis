@@ -57,7 +57,7 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "options": ["km", "m", "mi", "nm"],
             "default": "m",
             "showIf": [
                 {
@@ -93,7 +93,7 @@
             "title": "Time units",
             "description": "Unit for the computation of the time",
             "type": "Selection",
-            "options": ["s", "min", "h", "d", "a"],
+            "options": ["s", "h"],
             "default": "s",
             "showIf": [
                 {
@@ -151,7 +151,7 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "options": ["km", "m", "mi", "nm"],
             "default": "m",
             "showIf": [
                 {
@@ -165,7 +165,7 @@
             "title": "Time units",
             "description": "Unit for the computation of the time",
             "type": "Selection",
-            "options": ["s", "min", "h", "d", "a"],
+            "options": ["s", "h"],
             "default": "s",
             "showIf": [
                 {
@@ -201,7 +201,7 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "options": ["km", "m", "mi", "nm"],
             "default": "m",
             "showIf": [
                 {
@@ -215,7 +215,7 @@
             "title": "Time units",
             "description": "Unit for the computation of the time",
             "type": "Selection",
-            "options": ["s", "min", "h", "d", "a"],
+            "options": ["s", "h"],
             "default": "s",
             "showIf": [
                 {

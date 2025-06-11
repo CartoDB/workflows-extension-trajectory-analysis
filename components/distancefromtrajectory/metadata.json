@@ -114,7 +114,7 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "cm", "mm", "nm", "inch", "ft", "yd", "mi", "link", "chain", "deg"],
+            "options": ["km", "m", "mi", "nm"],
             "default": "m"
         }
     ],
