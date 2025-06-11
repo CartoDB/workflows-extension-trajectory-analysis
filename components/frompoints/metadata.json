@@ -1,7 +1,7 @@
 {
     "name": "frompoints",
     "title": "Trajectory from Points",
-    "description": "Convert a table of timestamped points in trajectories.",
+    "description": "Converts a table containing points with timestamps into trajectories, where each row represents a complete trajectory.",
     "version": "1.0.0",
     "icon": "trajectory_from_points.svg",
     "cartoEnvVars": [],
@@ -9,13 +9,13 @@
         {
             "name": "input_table",
             "title": "Input table",
-            "description": "The table with the timestamped points per row",
+            "description": "Table containing points with timestamps",
             "type": "Table"
         },
         {
             "name": "input_traj_id_column",
-            "title": "Trajectory ID column",
-            "description": "The name of the column storing the trajectory identifier",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
@@ -23,7 +23,7 @@
         {
             "name": "input_lon_column",
             "title": "Longitude column",
-            "description": "The name of the column storing the longitude column",
+            "description": "Column containing the longitude values",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
@@ -31,7 +31,7 @@
         {
             "name": "input_lat_column",
             "title": "Latitude column",
-            "description": "The name of the column storing the latitude column",
+            "description": "Column containing the latitude values",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
@@ -39,15 +39,15 @@
         {
             "name": "input_t_column",
             "title": "Timestamp column",
-            "description": "The name of the column storing the timestamp column",
+            "description": "Column containing the timestamps",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
         },
         {
             "name": "input_tpoints_column",
-            "title": "Name for the trajectory points column",
-            "description": "Column to be used to define the trajectory points",
+            "title": "Trajectory points column name",
+            "description": "Name to be assigned to the column containing the trajectory points",
             "type": "String",
             "optional": false,
             "default": "tpoints"
@@ -56,6 +56,7 @@
             "name": "input_properties_columns",
             "title": "Properties columns",
             "description": "All the columns to be stored as a JSON-encoded string per timestamp",
+            "helper": "The selected columns will be stored as properties in a JSON-encoded string for each point",
             "type": "Column",
             "mode": "multiple",
             "parent": "input_table",

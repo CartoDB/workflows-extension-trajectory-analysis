@@ -8,22 +8,22 @@
     "inputs": [
         {
             "name": "input_table",
-            "title": "Input table",
-            "description": "The table containing the trajectories",
+            "title": "Trajectories table",
+            "description": "Table containing the trajectories",
             "type": "Table"
         },
         {
             "name": "input_traj_id_column",
-            "title": "Trajectory ID column",
-            "description": "The name of the column storing the trajectory identifier",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
         },
         {
             "name": "input_tpoints_column",
-            "title": "Trajectory points",
-            "description": "Column with the trajectory points",
+            "title": "Trajectory points column",
+            "description": "Column containing the points for each trajectory",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true

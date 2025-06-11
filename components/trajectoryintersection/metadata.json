@@ -15,13 +15,13 @@
         {
             "name": "input_table",
             "title": "Trajectories table",
-            "description": "Input table containing the trajectories",
+            "description": "Table containing the trajectories",
             "type": "Table"
         },
         {
             "name": "traj_id_col",
-            "title": "Trajectory ID",
-            "description": "Column with the trajectory IDs",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -29,8 +29,8 @@
         },
         {
             "name": "tpoints_col",
-            "title": "Trajectory points",
-            "description": "Column with the trajectory points",
+            "title": "Trajectory points column",
+            "description": "Column containing the points for each trajectory",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -38,8 +38,9 @@
         },
         {
             "name": "join_type",
-            "title": "Join",
+            "title": "Join type",
             "description": "How to join trajectories and polygons",
+            "helper": "If 'Key Join' is selected, the component will join the trajectories and polygons using a key column. If 'Cross Join' is selected, the component will join the trajectories and polygons using all the rows in the trajectories and polygons tables. Using 'Cross Join' could result in a large number of rows in the output table.",
             "type": "Selection",
             "options": ["Key Join", "Cross Join"],
             "default": "Key Join",
@@ -47,8 +48,8 @@
         },
         {
             "name": "traj_key_col",
-            "title": "Join Key in Trajectories",
-            "description": "Column to use as key when joining from the Trajectories input",
+            "title": "Join Key (Trajectories)",
+            "description": "Column from the Trajectories table to be used as key when joining with the polygons",
             "type": "Column",
             "parent": "input_table",
             "optional": false,
@@ -62,8 +63,8 @@
         },
         {
             "name": "polygon_key_col",
-            "title": "Join Key in Polygons",
-            "description": "Column to use as key when joining from the Polygon input",
+            "title": "Join Key (Polygons)",
+            "description": "Column from the Polygons table to be used as key when joining with the trajectories",
             "type": "Column",
             "parent": "input_table_polygon",
             "optional": false,
@@ -77,8 +78,8 @@
         },
         {
             "name": "polygon_col",
-            "title": "Polygon geometry",
-            "description": "Column with the polygon geometry",
+            "title": "Polygon geometries column",
+            "description": "Column containing the geometries of the polygons",
             "type": "Column",
             "parent": "input_table_polygon",
             "optional": false,
@@ -87,7 +88,7 @@
         {
             "name": "return_polygon_properties",
             "title": "Return polygon properties",
-            "description": "Whether the component should also return the columns in the Polygon input",
+            "description": "If enabled, the component will also return all the columns from the polygons table",
             "type": "Boolean",
             "default": false,
             "optional": true
