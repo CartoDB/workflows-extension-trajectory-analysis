@@ -1,8 +1,8 @@
 {
     "name": "trajectory-analysis",
     "title": "Trajectory Analysis",
-    "industry": "TBD",
-    "description": "An extension package to handle trajectory data.",
+    "industry": "Trajectory Data",
+    "description": "Collected from vehicles, pedestrians, GPS, AIS, and other sources, trajectory data is a key input for many geospatial analyses. This extension provides a set of tools to analyze trajectories, including cleaning and simplifying trajectories, computing metrics, stop detection, and more.",
     "icon": "trajectories_extension.svg",
     "version": "1.0.1",
     "lastUpdate": "2025-05-07",
@@ -15,21 +15,13 @@
         }
     },
     "license": {
-        "value": "CARTO Proprietary",
+        "value": "CARTO License",
         "link": {
-            "label": "CARTO Proprietary",
+            "label": "CARTO License",
             "href": "https://carto.com/legal"
         }
     },
-    "details": [
-        {
-            "name": "Optional detail",
-            "link": {
-                "label": "TBD",
-                "href": "https://carto.com/"
-            }
-        }
-    ],
+    "details": [],
     "components": [
         "frompoints",
         "topoints",
