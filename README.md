@@ -1,34 +1,46 @@
-# Extension Packages for CARTO Workflows
-Use this template repository as a framework for creating extension packages for CARTO Workflows, containing custom components that are tailored to your specific use cases. 
+# Trajectory Analysis Extension
 
-These packages can be easily distributed and installed within the Workflows application, extending its core functionality with new, specialized operations.
+This extension provides components for working with trajectory datasets inside CARTO Workflows. Users of this extension can clean and simplify trajectories, compute derivative metrics (speeds, positions, distances...), detect stops, etc.
 
-![](https://cdn.prod.website-files.com/6345207a1b18e581fcf67604/66507f26948382ff94fa45be_components.jpg)
+The Trajectory Analysis extension is compatible with Workflows powered by BigQuery.
 
-Find more documentation about installing and managing extension packages in [this section of the CARTO documentation](https://docs.carto.com/carto-user-manual/workflows/extension-packages).
+## Components
 
-> Currently, Extension Packages are only supported in Workflows created for **BigQuery** and **Snowflake** connections.
+It includes 10 components:
 
-Learn more about building, testing, and distributing extension packages for CARTO Workflows in the following sections: 
+- **From Points**: Convert a set of points into a trajectory
+- **To Points**: Convert a trajectory into a set of points
+- **Trajectory Splitter**: Split trajectories into segments based on time or distance
+- **Stop Detector**: Identify stops within trajectories
+- **Compute Metrics**: Calculate speed, distance, and other trajectory metrics
+- **Trajectory Cleaner**: Remove noise and outliers from trajectories
+- **Trajectory Simplifier**: Reduce trajectory points while preserving shape
+- **Get Values at Timestamp**: Extract trajectory values at specific timestamps
+- **Trajectory Intersection**: Find which trajectories intersect a polygon or set of polygons
+- **Distance from Trajectory**: Calculate distance between points and trajectories
 
-### 🧬 [Anatomy of an extension package](./doc/anatomy_of_an_extension.md)
-This document describes the different elements that are needed to build an extension package and how they relate to each other. 
+## Building the extension
 
-Read it carefully to understand how inputs, settings and outputs are defined along with the logic of each component.
+To build the extension, follow these steps:
 
-It also contains a description of the basic elements required to define automated tests for your component.
+1. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
 
-There are also specific pages that go in detail about some of the pieces needed to build an extension. Check them once you're familiar with the basic structure of a component: 
-* [**Extension's metadata**](./doc/extension_metadata.md)
-* [**Component's metadata**](./doc/component_metadata.md)
-* [**Stored procedure**](./doc/procedure.md)
-* [**Icons**](./doc/icons.md)
+2. Package the extension:
+   ```
+   python carto_extension.py package
+   ```
 
-### ⚙️ [Build you own extension: step by step](./doc/build_your_extension.md)
-This section contains a step by step guide for creating your first extension package. 
+This will create a packaged version of the extension that can be installed in your CARTO Workflows.
 
-### ✅ [Tests](./doc/running_tests.md)
-Learn how to configure, run and automate different tests for your components.
+## Running the test
 
-### 🧰 [Tools](./doc/tooling.md)
-Learn how to use the tools included with this template to help with the creation of extension packages.
+To run the tests follow [these instructions](https://github.com/CartoDB/workflows-extension-template/blob/master/doc/running_tests.md). You would also need to specify the location of the Analytics Toolbox in the `.env` file, for instance:
+
+```
+ANALYTICS_TOOLBOX_LOCATION="`carto-un.carto`"
+```
+
+**NOTE**: please mind the backticks inside the string value; these are compulsory if the project or dataset contains spaces, hyphens or other non-standard characters allowed by BigQuery for FQNs.
