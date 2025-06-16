@@ -33,7 +33,8 @@
         {
             "name": "method",
             "title": "Return",
-            "description": "Whether to return points and stop info or trajectory segments",
+            "description": "Whether to return points representing the stops or trajectory segments before and after the stops",
+            "helper": "Points: the points representing the stops. Segments: the trajectory segments before and after the stops.",
             "type": "Selection",
             "options": ["Points", "Segments"],
             "default": "Segments",
