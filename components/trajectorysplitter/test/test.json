@@ -100,5 +100,22 @@
             "valuechange_col":null,
             "min_length": 0
         }
+    },
+    {
+        "id": 7,
+        "inputs": {
+            "input_table": "trajectories_with_extra_column",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "method": "Stops",
+            "min_angle": null,
+            "min_speed": null,
+            "min_duration": 30,
+            "duration_unit": "seconds",
+            "max_diameter": 30,
+            "time_mode": null,
+            "valuechange_col":null,
+            "min_length": 0
+        }
     }
 ]
