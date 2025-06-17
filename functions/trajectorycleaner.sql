@@ -24,12 +24,29 @@ import geopandas as gpd
 import movingpandas as mpd
 
 def main(
-  traj_id, 
-  trajectory, 
+  traj_id,
+  trajectory,
   speed_threshold,
   input_unit_distance,
   input_unit_time
 ):
+    # Unit mapping from English names to short names
+    distance_units = {
+        "Kilometers": "km",
+        "Meters": "m",
+        "Miles": "mi",
+        "Nautical Miles": "nm"
+    }
+
+    time_units = {
+        "Seconds": "s",
+        "Hours": "h"
+    }
+
+    # Convert English names to short names
+    distance_unit = distance_units[input_unit_distance]
+    time_unit = time_units[input_unit_time]
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -52,9 +69,9 @@ def main(
     traj = mpd.Trajectory(gdf, traj_id)
 
     with warnings.catch_warnings(record=True) as caught_warnings:
-        warnings.simplefilter('always') 
+        warnings.simplefilter('always')
 
-        result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=(input_unit_distance, input_unit_time))
+        result = mpd.OutlierCleaner(traj).clean(v_max=speed_threshold, units=(distance_unit, time_unit))
 
         result = result.to_point_gdf().reset_index()
         result['lon'] = result.geometry.x.astype(np.float64)

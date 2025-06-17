@@ -116,8 +116,8 @@
             "title": "Distance units",
             "description": "Unit for the computed distances",
             "type": "Selection",
-            "options": ["km", "m", "mi", "nm"],
-            "default": "m"
+            "options": ["Kilometers", "Meters", "Miles", "Nautical Miles"],
+            "default": "Meters"
         }
     ],
     "outputs": [

@@ -33,6 +33,17 @@ def main(
     distance_from,
     units,
 ):
+    # Unit mapping from English names to short names
+    distance_units = {
+        "Kilometers": "km",
+        "Meters": "m",
+        "Miles": "mi",
+        "Nautical Miles": "nm"
+    }
+
+    # Convert English names to short names
+    unit = distance_units[units]
+
     if not trajectory:
         return None
 
@@ -63,13 +74,13 @@ def main(
 
     if gdf.shape[0] <= 1 or distance_from == 'First Point':
         distance = gdf.iloc[0].geometry.distance(position)
-        conversion = get_conversion(units, 'm')  # 'degree' is the EPSG:3395 unit
+        conversion = get_conversion(unit, 'm')
         return distance * correction_factor / conversion.distance
     elif distance_from == 'Last Point':
         distance = gdf.iloc[-1].geometry.distance(position)
-        conversion = get_conversion(units, 'm')  # 'degree' is the EPSG:3395 unit
+        conversion = get_conversion(unit, 'm')
         return distance * correction_factor / conversion.distance
     elif distance_from == 'Nearest Point':
         traj = mpd.Trajectory(gdf, traj_id)
-        return traj.distance(other=position, units=units) * correction_factor
+        return traj.distance(other=position, units=unit) * correction_factor
 """;

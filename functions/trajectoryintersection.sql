@@ -23,8 +23,8 @@ import shapely
 from shapely.wkt import loads
 
 def main(
-  traj_id, 
-  trajectory, 
+  traj_id,
+  trajectory,
   polygon,
   intersection_method
 ):

@@ -87,8 +87,8 @@
             "title": "Duration unit",
             "description": "Unit for the minimum duration",
             "type": "Selection",
-            "options": ["seconds", "minutes", "hours", "days"],
-            "default": "seconds",
+            "options": ["Seconds", "Minutes", "Hours", "Days"],
+            "default": "Seconds",
             "optional": false,
             "showIf": [
                 {
