@@ -1,27 +1,27 @@
 {
     "name": "distancefromtrajectory",
     "title": "Distance from Trajectory",
-    "description": "Return the minimum distance from one or more input positions to trajectory.",
+    "description": "Returns the minimum distance from one or more input positions to one or more trajectories.",
     "version": "1.0.0",
     "icon": "trajectory_get_distance_from_position.svg",
     "cartoEnvVars": [],
     "inputs": [
         {
             "name": "input_table_position",
-            "title": "Position table",
+            "title": "Positions table",
             "description": "Table containing the positions",
             "type": "Table"
         },
         {
             "name": "input_table",
             "title": "Trajectories table",
-            "description": "Input table containing the trajectories",
+            "description": "Table containing the trajectories",
             "type": "Table"
         },
         {
             "name": "traj_id_col",
-            "title": "Trajectory ID",
-            "description": "Column with the trajectory IDs",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -29,8 +29,8 @@
         },
         {
             "name": "tpoints_col",
-            "title": "Trajectory points",
-            "description": "Column with the trajectory points",
+            "title": "Trajectory points column",
+            "description": "Column containing the points for each trajectory",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -38,8 +38,9 @@
         },
         {
             "name": "join_type",
-            "title": "Join",
-            "description": "How to join trajectories and positions",
+            "title": "Join type",
+            "description": "Defines how the trajectories and positions will be joined",
+            "helper": "If 'Key Join' is selected, the component will join the trajectories and positions using a key column. If 'Cross Join' is selected, the component will join the trajectories and positions using all the rows in the trajectories and positions tables. Using 'Cross Join' could result in a large number of rows in the output table.",
             "type": "Selection",
             "options": ["Key Join", "Cross Join"],
             "default": "Key Join",
@@ -47,8 +48,8 @@
         },
         {
             "name": "traj_key_col",
-            "title": "Join Key in Trajectories",
-            "description": "Column to use as key when joining from the Trajectories input",
+            "title": "Join Key (Trajectories)",
+            "description": "Column from the Trajectories table to be used as key when joining with the positions",
             "type": "Column",
             "parent": "input_table",
             "optional": false,
@@ -62,8 +63,8 @@
         },
         {
             "name": "position_key_col",
-            "title": "Join Key in Positions",
-            "description": "Column to use as key when joining from the position input",
+            "title": "Join Key (Positions)",
+            "description": "Column from the Positions table to be used as key when joining with the trajectories",
             "type": "Column",
             "parent": "input_table_position",
             "optional": false,
@@ -77,8 +78,8 @@
         },
         {
             "name": "position_col",
-            "title": "Position geometry",
-            "description": "Column with the position geometry",
+            "title": "Position geometries column",
+            "description": "Column containing the geometries of the positions",
             "type": "Column",
             "parent": "input_table_position",
             "dataType": ["geometry", "geography"],
@@ -87,7 +88,7 @@
         {
             "name": "return_position_properties",
             "title": "Return position properties",
-            "description": "Whether the component should also return the columns in the position input",
+            "description": "If enabled, the component will also return all the columns from the positions table",
             "type": "Boolean",
             "default": false,
             "optional": true
@@ -95,7 +96,8 @@
         {
             "name": "distance_from",
             "title": "Distance from",
-            "description": "Distance from which point in the trajectory",
+            "description": "Defines the point in the trajectory from which the distance will be computed",
+            "helper": "If 'Nearest Point' is selected, the component will compute the distance from the nearest point in the trajectory to the position. If 'First Point' is selected, the component will compute the distance from the first point in the trajectory to the position. If 'Last Point' is selected, the component will compute the distance from the last point in the trajectory to the position.",
             "type": "Selection",
             "options": ["Nearest Point", "First Point", "Last Point"],
             "default": "Nearest Point",
@@ -104,7 +106,7 @@
         {
             "name": "distance_output_col",
             "title": "Distance column name",
-            "description": "Name to use for the output column containing the distances",
+            "description": "Name to be assigned to the output column containing the distances",
             "type": "String",
             "default": "distance",
             "optional": false
@@ -112,7 +114,7 @@
         {
             "name": "units",
             "title": "Distance units",
-            "description": "Unit for the computation of the distance",
+            "description": "Unit for the computed distances",
             "type": "Selection",
             "options": ["km", "m", "mi", "nm"],
             "default": "m"

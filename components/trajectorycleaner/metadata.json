@@ -8,14 +8,14 @@
     "inputs": [
         {
             "name": "input_table",
-            "title": "Input table",
-            "description": "Input table containing the trajectories",
+            "title": "Trajectories table",
+            "description": "Table containing the trajectories",
             "type": "Table"
         },
         {
             "name": "traj_id_col",
-            "title": "Trajectory ID",
-            "description": "Column with the trajectory IDs",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -23,8 +23,8 @@
         },
         {
             "name": "tpoints_col",
-            "title": "Trajectory points",
-            "description": "Column with the trajectory points",
+            "title": "Trajectory points column",
+            "description": "Column containing the points for each trajectory",
             "type": "Column",
             "parent": "input_table",
             "noDefault": "true",
@@ -33,7 +33,7 @@
         {
             "name": "speed_threshold",
             "title": "Speed Threshold",
-            "description": "Maximum speed to consider an outlier. If the resulting trayectory is invalid (e.g. <2 points remaining), the original trajectory is returned together with a warning",
+            "description": "Maximum speed to consider an outlier. If the resulting trajectory is invalid (e.g. <2 points remaining), the original trajectory is returned together with a warning",
             "type": "Number",
             "optional": false,
             "default": 100,
