@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION 
-    @@workflows_temp@@.`GET_VALUES_AT_TIMESTAMP` 
+CREATE OR REPLACE FUNCTION
+    @@workflows_temp@@.`GET_VALUES_AT_TIMESTAMP`
 (
     traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,

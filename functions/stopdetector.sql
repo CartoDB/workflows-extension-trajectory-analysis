@@ -29,6 +29,14 @@ def main(
     min_duration,
     duration_unit,
 ):
+    # Unit mapping from English names to short names
+    time_units = {
+        "Seconds": "seconds",
+        "Minutes": "minutes",
+        "Hours": "hours",
+        "Days": "days"
+    }
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -50,7 +58,7 @@ def main(
     traj = mpd.Trajectory(gdf, traj_id)
 
     # Convert duration to timedelta
-    kwargs = {duration_unit: min_duration}
+    kwargs = {time_units[duration_unit]: min_duration}
     duration_td = timedelta(**kwargs)
 
     result = (
@@ -99,6 +107,14 @@ def main(
     min_duration,
     duration_unit,
 ):
+    # Unit mapping from English names to short names
+    time_units = {
+        "Seconds": "seconds",
+        "Minutes": "minutes",
+        "Hours": "hours",
+        "Days": "days"
+    }
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -120,7 +136,7 @@ def main(
     traj = mpd.Trajectory(gdf, traj_id)
 
     # Convert duration to timedelta
-    kwargs = {duration_unit: min_duration}
+    kwargs = {time_units[duration_unit]: min_duration}
     duration_td = timedelta(**kwargs)
 
     result = (

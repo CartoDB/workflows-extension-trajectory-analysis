@@ -31,6 +31,14 @@ def main(
     max_diameter,
     min_length
 ):
+    # Unit mapping from English names to short names
+    time_units = {
+        "Seconds": "seconds",
+        "Minutes": "minutes",
+        "Hours": "hours",
+        "Days": "days"
+    }
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -52,9 +60,9 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
-    kwargs = {duration_unit: min_duration}
+    kwargs = {time_units[duration_unit]: min_duration}
     duration_td = timedelta(**kwargs)
-    
+
     result = mpd.StopSplitter(traj).split(
         max_diameter=max_diameter,
         min_duration=duration_td,
@@ -171,6 +179,14 @@ def main(
     duration_unit,
     min_length
 ):
+    # Unit mapping from English names to short names
+    time_units = {
+        "Seconds": "seconds",
+        "Minutes": "minutes",
+        "Hours": "hours",
+        "Days": "days"
+    }
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -192,9 +208,9 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
-    kwargs = {duration_unit: min_duration}
+    kwargs = {time_units[duration_unit]: min_duration}
     duration_td = timedelta(**kwargs)
-    
+
     result = mpd.SpeedSplitter(traj).split(
         speed=min_speed,
         duration=duration_td,
@@ -245,6 +261,14 @@ def main(
     duration_unit,
     min_length
 ):
+    # Unit mapping from English names to short names
+    time_units = {
+        "Seconds": "seconds",
+        "Minutes": "minutes",
+        "Hours": "hours",
+        "Days": "days"
+    }
+
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -266,9 +290,9 @@ def main(
     # build the Trajectory object
     traj = mpd.Trajectory(gdf, traj_id)
 
-    kwargs = {duration_unit: min_duration}
+    kwargs = {time_units[duration_unit]: min_duration}
     duration_td = timedelta(**kwargs)
-    
+
     result = mpd.ObservationGapSplitter(traj).split(
         gap=duration_td,
         min_length=min_length

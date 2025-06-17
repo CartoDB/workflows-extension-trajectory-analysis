@@ -1,7 +1,7 @@
-CREATE OR REPLACE FUNCTION 
+CREATE OR REPLACE FUNCTION
     @@workflows_temp@@.`TRAJECTORY_SIMPLIFIER`
 (
-    traj_id STRING, 
+    traj_id STRING,
     trajectory ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>,
     tolerance FLOAT64,
     rounding_precision FLOAT64
@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION
 RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
 LANGUAGE python
 OPTIONS (
-    entry_point='main',	
+    entry_point='main',
     runtime_version='python-3.11',
     packages=['pymeos==1.2.0','pandas','datetime','shapely']
 )AS r"""
@@ -38,12 +38,12 @@ def main(traj_id, trajectory, tolerance, rounding_precision):
         gpd['t'] = gpd['t'].dt.tz_localize('UTC')
     gpd['t'] = gpd['t'].dt.tz_convert('UTC')
     gpd = gpd.drop_duplicates(subset=['t']).sort_values(by='t')
- 
+
     gpd['instant'] = gpd.apply(
         lambda row: TGeogPointInst(string=f'{row["geom"]}@{row["t"]}'),
         axis=1,
     )
-    
+
     trajectories = (
         gpd.groupby(lambda x: True)
         .aggregate(
@@ -65,7 +65,7 @@ def main(traj_id, trajectory, tolerance, rounding_precision):
     trajectory = trajectories["trajectory"].values[0]
     geom = [shapely.wkt.dumps(point) for point in trajectory.values()]
     t = [time.strftime("%Y%m%d%H%M%S") for time in trajectory.timestamps()]
-    
+
     result = pd.DataFrame({
         'geom': geom,
         't': pd.to_datetime(t, format='%Y%m%d%H%M%S')

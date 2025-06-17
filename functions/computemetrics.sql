@@ -7,13 +7,13 @@ CREATE OR REPLACE FUNCTION
     input_duration_bool BOOLEAN,
     input_direction_bool BOOLEAN,
     input_speed_bool BOOLEAN,
-    input_acceleration_bool BOOLEAN, 
+    input_acceleration_bool BOOLEAN,
     input_distance_column STRING,
     input_duration_column STRING,
     input_direction_column STRING,
     input_speed_column STRING,
-    input_acceleration_column STRING, 
-    input_distance_unit_distance STRING, input_speed_unit_distance STRING, input_acceleration_unit_distance STRING, 
+    input_acceleration_column STRING,
+    input_distance_unit_distance STRING, input_speed_unit_distance STRING, input_acceleration_unit_distance STRING,
     input_duration_unit_time STRING, input_speed_unit_time STRING, input_acceleration_unit_time STRING
 )
 RETURNS ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
@@ -31,23 +31,6 @@ import pandas as pd
 import geopandas as gpd
 import movingpandas as mpd
 import json
-
-def timedelta_to_unit(delta, unit):
-    unit = unit.lower()
-    seconds = delta.total_seconds()
-    if unit == 's':
-        return seconds
-    elif unit == 'min':
-        return seconds / 60
-    elif unit == 'h':
-        return seconds / 3600
-    elif unit == 'd':
-        return seconds / 86400
-    elif unit == 'a':
-        return seconds / (86400 * 365)  
-    else:
-        raise ValueError(f'Unsupported time unit: {unit}')
-
 
 def main(
     traj_id,
@@ -69,6 +52,28 @@ def main(
     input_speed_unit_time,
     input_acceleration_unit_time
 ):
+    # Unit mapping from English names to short names
+    distance_units = {
+        "Kilometers": "km",
+        "Meters": "m",
+        "Miles": "mi",
+        "Nautical Miles": "nm"
+    }
+
+    time_units = {
+        "Seconds": "s",
+        "Minutes": "min",
+        "Hours": "h",
+        "Days": "d"
+    }
+
+    # Unit conversion factors from seconds
+    time_conversions = {
+        "Seconds": 1,
+        "Minutes": 60,
+        "Hours": 3600,
+        "Days": 86400
+    }
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
@@ -124,15 +129,15 @@ def main(
     traj = mpd.Trajectory(gdf, traj_id)
 
     if input_distance_bool:
-        traj = traj.add_distance(name=input_distance_column, units=input_distance_unit_distance)
+        traj = traj.add_distance(name=input_distance_column, units=distance_units[input_distance_unit_distance])
     if input_duration_bool:
         traj = traj.add_timedelta(name=input_duration_column)
     if input_direction_bool:
         traj = traj.add_direction(name=input_direction_column)
     if input_speed_bool:
-        traj = traj.add_speed(name=input_speed_column, units=(input_speed_unit_distance, input_speed_unit_time))
+        traj = traj.add_speed(name=input_speed_column, units=(distance_units[input_speed_unit_distance], time_units[input_speed_unit_time]))
     if input_acceleration_bool:
-        traj = traj.add_acceleration(name=input_acceleration_column, units=(input_acceleration_unit_distance, input_acceleration_unit_time, input_acceleration_unit_time))
+        traj = traj.add_acceleration(name=input_acceleration_column, units=(distance_units[input_acceleration_unit_distance], time_units[input_acceleration_unit_time], time_units[input_acceleration_unit_time]))
 
     result = traj.to_point_gdf().reset_index()
     result['lon'] = result.geometry.x.astype(np.float64)
@@ -140,7 +145,7 @@ def main(
     result = result[['lon', 'lat', 't', 'properties']+[x for x in input_metrics_names if x]]
     if input_duration_bool:
         result[input_duration_column] = result[input_duration_column].apply(
-            lambda x: timedelta_to_unit(x, input_duration_unit_time) if pd.notna(x) else 0
+            lambda x: x.total_seconds() / time_conversions[input_duration_unit_time] if pd.notna(x) else 0
         )
 
     result['properties'] = result.apply(merge_json, axis=1)

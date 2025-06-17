@@ -44,8 +44,8 @@
             "title": "Distance units",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "mi", "nm"],
-            "default": "m",
+            "options": ["Kilometers", "Meters", "Miles", "Nautical Miles"],
+            "default": "Meters",
             "optional": true
         },
         {
@@ -53,8 +53,8 @@
             "title": "Time units",
             "description": "Unit for the computation of the time",
             "type": "Selection",
-            "options": ["s", "h"],
-            "default": "s",
+            "options": ["Seconds", "Hours"],
+            "default": "Seconds",
             "optional": true
         }
     ],

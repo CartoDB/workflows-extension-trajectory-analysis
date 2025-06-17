@@ -6,8 +6,8 @@
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "speed_threshold": 120,
-            "input_unit_distance":"km",
-            "input_unit_time":"h"
+            "input_unit_distance":"Kilometers",
+            "input_unit_time":"Hours"
 
         }
     },
@@ -18,8 +18,8 @@
             "traj_id_col": "traj_id",
             "tpoints_col": "tpoints",
             "speed_threshold": 0,
-            "input_unit_distance":"km",
-            "input_unit_time":"h"
+            "input_unit_distance":"Kilometers",
+            "input_unit_time":"Hours"
 
         }
     }

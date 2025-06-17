@@ -58,8 +58,8 @@
             "title": "Distance unit",
             "description": "Unit for the computation of the distance",
             "type": "Selection",
-            "options": ["km", "m", "mi", "nm"],
-            "default": "m",
+            "options": ["Kilometers", "Meters", "Miles", "Nautical Miles"],
+            "default": "Meters",
             "showIf": [
                 {
                     "parameter": "input_distance_bool",
@@ -95,8 +95,8 @@
             "title": "Duration unit",
             "description": "Unit for the computation of the duration",
             "type": "Selection",
-            "options": ["s", "h"],
-            "default": "s",
+            "options": ["Seconds", "Hours"],
+            "default": "Seconds",
             "showIf": [
                 {
                     "parameter": "input_duration_bool",
@@ -155,8 +155,8 @@
             "title": "Speed distance unit",
             "description": "Unit for the computation of the speed (distance)",
             "type": "Selection",
-            "options": ["km", "m", "mi", "nm"],
-            "default": "m",
+            "options": ["Kilometers", "Meters", "Miles", "Nautical Miles"],
+            "default": "Meters",
             "showIf": [
                 {
                     "parameter": "input_speed_bool",
@@ -169,8 +169,8 @@
             "title": "Speed time unit",
             "description": "Unit for the computation of the speed (time)",
             "type": "Selection",
-            "options": ["s", "h"],
-            "default": "s",
+            "options": ["Seconds", "Hours"],
+            "default": "Seconds",
             "showIf": [
                 {
                     "parameter": "input_speed_bool",
@@ -206,8 +206,8 @@
             "title": "Acceleration distance unit",
             "description": "Unit for the computation of the acceleration (distance)",
             "type": "Selection",
-            "options": ["km", "m", "mi", "nm"],
-            "default": "m",
+            "options": ["Kilometers", "Meters", "Miles", "Nautical Miles"],
+            "default": "Meters",
             "showIf": [
                 {
                     "parameter": "input_acceleration_bool",
@@ -220,8 +220,8 @@
             "title": "Acceleration time unit",
             "description": "Unit for the computation of the acceleration (time)",
             "type": "Selection",
-            "options": ["s", "h"],
-            "default": "s",
+            "options": ["Seconds", "Hours"],
+            "default": "Seconds",
             "showIf": [
                 {
                     "parameter": "input_acceleration_bool",
