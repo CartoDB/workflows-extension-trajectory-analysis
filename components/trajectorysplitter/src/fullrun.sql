@@ -6,28 +6,39 @@ EXECUTE IMMEDIATE FORMAT(
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     )
     AS
-        SELECT
-            input.* EXCEPT ( %s ),
-            p.seg_id,
-            ARRAY_AGG(
-                STRUCT(
-                  p.lon AS lon,
-                  p.lat AS lat,
-                  TIMESTAMP(p.t) AS t,
-                  p.properties AS properties
-                )
-                ORDER BY p.t
-            ) AS %s
-        FROM `%s` input,
-        UNNEST(
-            %s
-        ) AS p
-        GROUP BY input.%s, p.seg_id
-        ORDER BY input.%s, p.seg_id
+    WITH
+        split_cte AS (
+            SELECT
+                %s,
+                p.seg_id,
+                ARRAY_AGG(
+                    STRUCT(
+                      p.lon AS lon,
+                      p.lat AS lat,
+                      TIMESTAMP(p.t) AS t,
+                      p.properties AS properties
+                    )
+                    ORDER BY p.t
+                ) AS tpoints
+            FROM `%s`,
+            UNNEST(
+                %s
+            ) AS p
+            GROUP BY %s, p.seg_id
+        )
+    SELECT
+        input.* EXCEPT ( %s ),
+        split.seg_id,
+        split.tpoints AS %s
+    FROM
+        `%s` input
+    INNER JOIN
+        split_cte split
+    ON input.%s = split.%s
+    ORDER BY input.%s, split.seg_id
     ''',
     REPLACE(output_table, '`', ''),
-    tpoints_col,
-    tpoints_col,
+    traj_id_col,
     REPLACE(input_table, '`', ''),
     CASE WHEN method = 'Stops' THEN
         FORMAT(
@@ -126,6 +137,11 @@ EXECUTE IMMEDIATE FORMAT(
             min_length
         )
     END,
+    traj_id_col,
+    tpoints_col,
+    tpoints_col,
+    REPLACE(input_table, '`', ''),
+    traj_id_col,
     traj_id_col,
     traj_id_col
 );

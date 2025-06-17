@@ -82,7 +82,7 @@
             "description": "Column containing the geometries of the positions",
             "type": "Column",
             "parent": "input_table_position",
-            "dataType": ["geometry"],
+            "dataType": ["geometry", "geography"],
             "optional": false
         },
         {

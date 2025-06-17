@@ -18,5 +18,15 @@
             "tolerance": 10,
             "rounding_precision":10
         }
+    },
+    {
+        "id": 3,
+        "inputs": {
+            "input_table": "trajectories_with_extra_column",
+            "traj_id_col": "traj_id",
+            "tpoints_col": "tpoints",
+            "tolerance": 0,
+            "rounding_precision":10
+        }
     }
 ]

@@ -19,10 +19,15 @@ import numpy as np
 import math
 from typing import Any
 from pathlib import Path
+import pytest
+from tqdm import tqdm
 
 WORKFLOWS_TEMP_SCHEMA = "WORKFLOWS_TEMP"
 EXTENSIONS_TABLENAME = "WORKFLOWS_EXTENSIONS"
 WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
+
+# Initialize verbose flag
+verbose = False
 
 load_dotenv()
 
@@ -375,7 +380,7 @@ def deploy_bq(metadata, destination):
     sql_code = create_sql_code_bq(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
     sql_code = substitute_vars(sql_code)
-    if verbose:
+    if globals().get('verbose', False):
         print(sql_code)
     query_job = bq_client().query(sql_code)
     query_job.result()
@@ -389,7 +394,7 @@ def deploy_sf(metadata, destination):
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
     sql_code = substitute_vars(sql_code)
 
-    if verbose:
+    if globals().get('verbose', False):
         print(sql_code)
     cur = sf_client().cursor()
     cur.execute(sql_code)
@@ -586,7 +591,7 @@ def _upload_test_table_sf(filename, component):
     cursor.close()
 
 
-def _get_test_results(metadata, component):
+def _get_test_results(metadata, component, progress_bar=None):
     if metadata["provider"] == "bigquery":
         upload_function = _upload_test_table_bq
         workflows_temp = bq_workflows_temp
@@ -654,6 +659,11 @@ def _get_test_results(metadata, component):
             # TODO: improve argument passing to _run_query()
             component_results[test_id]["dry"] = _run_query(dry_run_query, component, metadata["provider"], tables)
             component_results[test_id]["full"] = _run_query(full_run_query, component, metadata["provider"], tables)
+            
+            # Update progress bar after each test (dry + full run = 1 item)
+            if progress_bar:
+                progress_bar.update(1)
+                progress_bar.set_postfix({"component": component["name"], "test": test_id})
 
         results[component["name"]] = component_results
 
@@ -673,7 +683,7 @@ def _build_query(workflows_temp, component_name, param_values, outputs):
 def _run_query(query: str, component: dict, provider: str, tables: dict) -> dict[str, pd.DataFrame]:
     results = dict()
 
-    if verbose:
+    if globals().get('verbose', False):
         print(query)
     if provider == "bigquery":
         query_job = bq_client().query(query)
@@ -747,6 +757,155 @@ def test(component):
     print("Extension correctly tested.")
 
 
+# Pytest-based testing functions
+_test_results_cache = None
+_metadata_cache = None
+
+def prepare_test_data():
+    """Run all SQL and collect test data."""
+    global _test_results_cache, _metadata_cache
+    
+    _metadata_cache = create_metadata()
+    deploy(None)
+    
+    # Calculate total number of tests to run for progress bar
+    total_tests = 0
+    current_folder = os.path.dirname(os.path.abspath(__file__))
+    components_folder = os.path.join(current_folder, "components")
+    
+    for component in _metadata_cache["components"]:
+        component_folder = os.path.join(components_folder, component["name"])
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(substitute_vars(f.read()))
+        total_tests += len(test_configurations)
+    
+    # Create progress bar only if not in verbose mode
+    if not verbose:
+        with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
+            _test_results_cache = _get_test_results(_metadata_cache, None, progress_bar=pbar)
+    else:
+        _test_results_cache = _get_test_results(_metadata_cache, None)
+
+def load_test_cases():
+    """Generate test cases from pre-collected data."""
+    import pickle
+    
+    # Load test data from file if available
+    test_data_file = os.environ.get('PYTEST_TEST_DATA_FILE')
+    if test_data_file and os.path.exists(test_data_file):
+        with open(test_data_file, 'rb') as f:
+            data = pickle.load(f)
+            metadata_cache = data['metadata']
+            test_results_cache = data['results']
+    else:
+        # Fallback: prepare data if file not available
+        global _test_results_cache, _metadata_cache
+        if _test_results_cache is None or _metadata_cache is None:
+            prepare_test_data()
+        metadata_cache = _metadata_cache
+        test_results_cache = _test_results_cache
+    
+    test_cases = []
+    current_folder = os.path.dirname(os.path.abspath(__file__))
+    components_folder = os.path.join(current_folder, "components")
+
+    for component in metadata_cache["components"]:
+        component_folder = os.path.join(components_folder, component["name"])
+        for test_id, outputs in test_results_cache[component["name"]].items():
+            test_folder = os.path.join(component_folder, "test", "fixtures")
+            test_filename = os.path.join(test_folder, f"{test_id}.json")
+
+            # Schema test case
+            test_cases.append({
+                "test_type": "schema",
+                "component": component,
+                "test_id": test_id,
+                "outputs": outputs,
+                "test_name": f"schema_{component['name']}_{test_id}"
+            })
+
+            # Results test case (skip if test_id starts with "skip_")
+            if not str(test_id).startswith("skip_"):
+                test_cases.append({
+                    "test_type": "results", 
+                    "component": component,
+                    "test_id": test_id,
+                    "outputs": outputs,
+                    "test_filename": test_filename,
+                    "test_name": f"results_{component['name']}_{test_id}"
+                })
+
+    return test_cases
+
+def pytest_generate_tests(metafunc):
+    """Generate test cases dynamically for pytest."""
+    if metafunc.function.__name__ == "test_extension_components":
+        test_cases = load_test_cases()
+        metafunc.parametrize("test_case", test_cases, ids=lambda tc: tc["test_name"])
+
+def test_extension_components(test_case):
+    """Parametrized test function that runs all component tests."""
+    if test_case["test_type"] == "schema":
+        # Test schema consistency
+        for output_name, dry_output in test_case["outputs"]["dry"].items():
+            full_output = test_case["outputs"]["full"][output_name]
+            dry_schema = set(dry_output.dtypes.astype(str).to_dict().keys())
+            full_schema = set(full_output.dtypes.astype(str).to_dict().keys())
+            assert dry_schema == full_schema, (
+                f"Schema mismatch in {test_case['component']['title']} - {test_case['test_id']} - {output_name}"
+            )
+
+    elif test_case["test_type"] == "results":
+        # Test results match expected
+        with open(test_case["test_filename"], "r") as f:
+            expected = json.loads(substitute_vars(f.read()))
+
+        for output_name, test_result_df in test_case["outputs"]["full"].items():
+            output = dataframe_to_dict(test_result_df)
+            expected_normalized = normalize_json(_sorted_json(expected[output_name]), decimal_places=3)
+            result_normalized = normalize_json(_sorted_json(output), decimal_places=3)
+            assert expected_normalized == result_normalized, (
+                f"Results mismatch for {test_case['component']['name']} - {test_case['test_id']} - {output_name}"
+            )
+
+def run_pytest_tests():
+    """Run the pytest-based tests."""
+    import tempfile
+    import pickle
+    
+    # Step 1: Prepare all test data and save to file
+    prepare_test_data()
+    
+    # Save test data to temporary file
+    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pkl') as f:
+        pickle.dump({
+            'metadata': _metadata_cache,
+            'results': _test_results_cache
+        }, f)
+        temp_file_path = f.name
+    
+    # Set environment variable so pytest can find the data file
+    os.environ['PYTEST_TEST_DATA_FILE'] = temp_file_path
+    
+    try:
+        # Step 2: Start pytest session
+        print("Running pytest-based extension tests...")
+        retcode = pytest.main(["-vv", "--tb=short", __file__ + "::test_extension_components"])
+        
+        if retcode == 0:
+            print("Extension correctly tested with pytest.")
+        else:
+            print(f"Pytest testing failed with exit code {retcode}")
+            exit(retcode)
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        if 'PYTEST_TEST_DATA_FILE' in os.environ:
+            del os.environ['PYTEST_TEST_DATA_FILE']
+
+
 def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     """Uniformly convert a pandas DataFrame to a neste structure.
 
@@ -777,7 +936,7 @@ def check_schema(dry_result, full_result) -> bool:
     if dry_schema.keys() == full_schema.keys():
         return True
     else:
-        if verbose:
+        if globals().get('verbose', False):
             print(f"{dry_schema.keys()=}")
             print(f"{full_schema.keys()=}")
         return False
@@ -1001,7 +1160,7 @@ parser.add_argument(
     "action",
     nargs=1,
     type=str,
-    choices=["package", "deploy", "test", "capture", "check", "update"],
+    choices=["package", "deploy", "test", "pytest", "capture", "check", "update"],
 )
 parser.add_argument("-c", "--component", help="Choose one component", type=str)
 parser.add_argument(
@@ -1012,23 +1171,28 @@ parser.add_argument(
     required="deploy" in argv,
 )
 parser.add_argument("-v", "--verbose", help="Verbose mode", action="store_true")
-args = parser.parse_args()
-action = args.action[0]
-verbose = args.verbose
-if args.component and action not in ["capture", "test"]:
-    parser.error("Component can only be used with 'capture' and 'test' actions")
-if args.destination and action not in ["deploy"]:
-    parser.error("Destination can only be used with 'deploy' action")
-if action == "package":
-    check()
-    package()
-elif action == "deploy":
-    deploy(args.destination)
-elif action == "test":
-    test(args.component)
-elif action == "capture":
-    capture(args.component)
-elif action == "check":
-    check()
-elif action == "update":
-    update()
+
+# Only parse args and run if this file is executed directly
+if __name__ == "__main__":
+    args = parser.parse_args()
+    action = args.action[0]
+    verbose = args.verbose
+    if args.component and action not in ["capture", "test"]:
+        parser.error("Component can only be used with 'capture' and 'test' actions")
+    if args.destination and action not in ["deploy"]:
+        parser.error("Destination can only be used with 'deploy' action")
+    if action == "package":
+        check()
+        package()
+    elif action == "deploy":
+        deploy(args.destination)
+    elif action == "test":
+        test(args.component)
+    elif action == "pytest":
+        run_pytest_tests()
+    elif action == "capture":
+        capture(args.component)
+    elif action == "check":
+        check()
+    elif action == "update":
+        update()

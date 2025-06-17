@@ -1,3 +1,19 @@
+DECLARE non_points INT64;
+
+EXECUTE IMMEDIATE FORMAT(
+    '''
+    SELECT COUNT(*)
+    FROM `%s`
+    WHERE ST_GEOMETRYTYPE(%s) != 'ST_Point'
+    ''',
+    REPLACE(input_table, '`', ''),
+    input_geom_column
+) INTO non_points;
+
+IF non_points > 0 THEN
+    RAISE USING MESSAGE = FORMAT('Error: Found %d non-point geometries in column %s. Only POINT geometries are supported.', non_points, input_geom_column);
+END IF;
+
 EXECUTE IMMEDIATE FORMAT(
     '''
     CREATE OR REPLACE TABLE `%s`
@@ -9,8 +25,8 @@ EXECUTE IMMEDIATE FORMAT(
             %s,
             ARRAY_AGG(
                 STRUCT(
-                    CAST(%s AS FLOAT64) AS lon,
-                    CAST(%s AS FLOAT64) AS lat,
+                    ST_X(%s) AS lon,
+                    ST_Y(%s) AS lat,
                     CAST(%s AS TIMESTAMP) AS t,
                     %s
                 )
@@ -22,8 +38,8 @@ EXECUTE IMMEDIATE FORMAT(
     ''',
     REPLACE(output_table, '`', ''),
     input_traj_id_column,
-    input_lon_column,
-    input_lat_column,
+    input_geom_column,
+    input_geom_column,
     input_t_column,
     CASE WHEN (input_properties_columns IS NULL OR input_properties_columns = '') THEN
         "'{}' AS properties"

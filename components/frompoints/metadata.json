@@ -21,17 +21,10 @@
             "noDefault": true
         },
         {
-            "name": "input_lon_column",
-            "title": "Longitude column",
-            "description": "Column containing the longitude values",
-            "type": "Column",
-            "parent": "input_table",
-            "noDefault": true
-        },
-        {
-            "name": "input_lat_column",
-            "title": "Latitude column",
-            "description": "Column containing the latitude values",
+            "name": "input_geom_column",
+            "title": "Geometry column",
+            "description": "The name of the column storing the geometry (point)",
+            "helper": "Your geometry column must contain single points only, not lines or polygons",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true

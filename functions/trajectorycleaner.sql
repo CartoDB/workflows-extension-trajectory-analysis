@@ -12,7 +12,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas']
+    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta

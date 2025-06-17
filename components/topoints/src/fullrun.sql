@@ -12,8 +12,7 @@ EXECUTE IMMEDIATE FORMAT(
         unnested_points AS(
             SELECT 
             %s AS %s, 
-            tpoint.lon AS lon, 
-            tpoint.lat AS lat, 
+            ST_GEOGPOINT(tpoint.lon, tpoint.lat) AS geom,
             tpoint.t AS t,
             tpoint.properties AS properties
             FROM CTE, UNNEST(%s) AS tpoint
@@ -39,18 +38,13 @@ EXECUTE IMMEDIATE FORMAT(
             segments AS (
                 SELECT 
                     p1.%s,
-                    p1.lon AS lon_start,
-                    p1.lat AS lat_start,
+                    p1.geom AS geom_start,
                     p1.t AS t_start,
                     p1.properties AS properties_start,
-                    p2.lon AS lon_end,
-                    p2.lat AS lat_end,
+                    p2.geom AS geom_end,
                     p2.t AS t_end,
                     p2.properties AS properties_end,
-                    ST_MAKELINE(
-                        ST_GEOGPOINT(p1.lon, p1.lat),
-                        ST_GEOGPOINT(p2.lon, p2.lat)
-                    ) AS geom
+                    ST_MAKELINE(p1.geom, p2.geom) AS geom
                 FROM numbered_points p1
                 JOIN numbered_points p2
                 ON p1.%s = p2.%s AND p1.rn + 1 = p2.rn

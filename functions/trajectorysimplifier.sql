@@ -11,7 +11,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',	
     runtime_version='python-3.11',
-    packages=['pymeos','pandas','datetime','shapely']
+    packages=['pymeos==1.2.0','pandas','datetime','shapely']
 )AS r"""
 from pymeos import pymeos_initialize, pymeos_finalize, TGeogPointInst, TGeogPointSeq
 import pandas as pd

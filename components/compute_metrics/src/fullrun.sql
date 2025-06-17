@@ -5,41 +5,51 @@ EXECUTE IMMEDIATE FORMAT(
     OPTIONS (
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     ) AS
-        SELECT 
-            input.* EXCEPT (%s),
-            ARRAY_AGG(
-                STRUCT(
-                  s.lon AS lon,
-                  s.lat AS lat,
-                  TIMESTAMP(s.t) AS t,
-                  s.properties AS properties
+    WITH
+        metrics_cte AS (
+            SELECT
+                %s,
+                ARRAY_AGG(
+                    STRUCT(
+                      s.lon AS lon,
+                      s.lat AS lat,
+                      TIMESTAMP(s.t) AS t,
+                      s.properties AS properties
+                    )
+                    ORDER BY s.t
+                ) AS tpoints
+            FROM `%s`,
+            UNNEST(
+                @@workflows_temp@@.TRAJECTORY_METRICS(
+                    %s,
+                    %s,
+                    %t,
+                    %t,
+                    %t,
+                    %t,
+                    %t,
+                    '%s',
+                    '%s',
+                    '%s',                     
+                    '%s',
+                    '%s',
+                    '%s', '%s', '%s', '%s', '%s', '%s'
                 )
-                ORDER BY s.t
-            ) AS %s
-        FROM `%s` input,
-        UNNEST(
-            @@workflows_temp@@.TRAJECTORY_METRICS(
-                %s,
-                %s,
-                %t,
-                %t,
-                %t,
-                %t,
-                %t,
-                '%s',
-                '%s',
-                '%s',                     
-                '%s',
-                '%s',
-                '%s', '%s', '%s', '%s', '%s', '%s'
-            )
-        ) AS s
-        GROUP BY %s
-        ORDER BY %s
+            ) AS s
+            GROUP BY %s
+        )
+    SELECT
+        input.* EXCEPT (%s),
+        metrics.tpoints AS %s
+    FROM
+        `%s` input
+    INNER JOIN
+        metrics_cte metrics
+    ON input.%s = metrics.%s
+    ORDER BY input.%s
     ''',
     REPLACE(output_table, '`', ''),
-    input_tpoints_column,
-    input_tpoints_column,
+    input_traj_id_column,
     REPLACE(input_table, '`', ''),
     input_traj_id_column,
     input_tpoints_column,
@@ -59,6 +69,11 @@ EXECUTE IMMEDIATE FORMAT(
     IFNULL(input_duration_unit_time, ''),
     IFNULL(input_speed_unit_time, ''),
     IFNULL(input_acceleration_unit_time, ''),
+    input_traj_id_column,
+    input_tpoints_column,
+    input_tpoints_column,
+    REPLACE(input_table, '`', ''),
+    input_traj_id_column,
     input_traj_id_column,
     input_traj_id_column
 );
