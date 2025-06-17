@@ -1,3 +1,19 @@
+DECLARE non_points INT64;
+
+EXECUTE IMMEDIATE FORMAT(
+    '''
+    SELECT COUNT(*)
+    FROM `%s`
+    WHERE ST_GEOMETRYTYPE(%s) != 'ST_Point'
+    ''',
+    REPLACE(input_table, '`', ''),
+    input_geom_column
+) INTO non_points;
+
+IF non_points > 0 THEN
+    RAISE USING MESSAGE = FORMAT('Error: Found %d non-point geometries in column %s. Only POINT geometries are supported.', non_points, input_geom_column);
+END IF;
+
 EXECUTE IMMEDIATE FORMAT(
     '''
     CREATE OR REPLACE TABLE `%s`

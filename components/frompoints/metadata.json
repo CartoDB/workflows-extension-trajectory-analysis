@@ -24,6 +24,7 @@
             "name": "input_geom_column",
             "title": "Geometry column",
             "description": "The name of the column storing the geometry (point)",
+            "helper": "Your geometry column must contain single points only, not lines or polygons",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true
