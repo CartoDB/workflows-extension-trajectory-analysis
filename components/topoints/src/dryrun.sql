@@ -13,8 +13,7 @@ EXECUTE IMMEDIATE FORMAT(
         FORMAT(
             '''
             %s STRING,
-            lon FLOAT64,
-            lat FLOAT64,
+            geom GEOGRAPHY,
             t TIMESTAMP,
             properties STRING
             ''',
@@ -24,12 +23,10 @@ EXECUTE IMMEDIATE FORMAT(
         FORMAT(
             '''
             %s STRING,
-            lon_start FLOAT64,
-            lat_start FLOAT64,
+            geom_start GEOGRAPHY,
             t_start TIMESTAMP,
             properties_start STRING,
-            lon_end FLOAT64,
-            lat_end FLOAT64,
+            geom_end GEOGRAPHY,
             t_end TIMESTAMP,
             properties_end STRING,
             geom GEOGRAPHY

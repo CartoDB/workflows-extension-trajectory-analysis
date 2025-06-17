@@ -21,17 +21,9 @@
             "noDefault": true
         },
         {
-            "name": "input_lon_column",
-            "title": "Longitude column",
-            "description": "The name of the column storing the longitude column",
-            "type": "Column",
-            "parent": "input_table",
-            "noDefault": true
-        },
-        {
-            "name": "input_lat_column",
-            "title": "Latitude column",
-            "description": "The name of the column storing the latitude column",
+            "name": "input_geom_column",
+            "title": "Geometry column",
+            "description": "The name of the column storing the geometry (point)",
             "type": "Column",
             "parent": "input_table",
             "noDefault": true

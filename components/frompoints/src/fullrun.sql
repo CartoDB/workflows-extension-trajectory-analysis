@@ -9,8 +9,8 @@ EXECUTE IMMEDIATE FORMAT(
             %s,
             ARRAY_AGG(
                 STRUCT(
-                    CAST(%s AS FLOAT64) AS lon,
-                    CAST(%s AS FLOAT64) AS lat,
+                    ST_X(%s) AS lon,
+                    ST_Y(%s) AS lat,
                     CAST(%s AS TIMESTAMP) AS t,
                     %s
                 )
@@ -22,8 +22,8 @@ EXECUTE IMMEDIATE FORMAT(
     ''',
     REPLACE(output_table, '`', ''),
     input_traj_id_column,
-    input_lon_column,
-    input_lat_column,
+    input_geom_column,
+    input_geom_column,
     input_t_column,
     CASE WHEN (input_properties_columns IS NULL OR input_properties_columns = '') THEN
         "'{}' AS properties"
