@@ -107,13 +107,24 @@ def main(
         # Merge properties JSON with the other fields
         return json.dumps({**properties_json, **other_fields})
 
-    if df.shape[0] <= 1:
-        # Return the original trajectory with empty columns
-        for column in col_names:
-            df[column] = np.nan
-        df['properties'] = df.apply(merge_json, axis=1)
-        df = df[['lon', 'lat', 't', 'properties']]
-        return df.to_dict(orient='records')
+    # Check if trajectory has enough unique timestamps for metric calculations
+    if df.empty or df.t.nunique() <= 1:
+        # Return the original trajectory with empty columns for computed metrics
+        result = df.copy()
+        if input_distance_bool:
+            result[input_distance_column] = np.nan
+        if input_duration_bool:
+            result[input_duration_column] = np.nan
+        if input_direction_bool:
+            result[input_direction_column] = np.nan
+        if input_speed_bool:
+            result[input_speed_column] = np.nan
+        if input_acceleration_bool:
+            result[input_acceleration_column] = np.nan
+
+        result['properties'] = result.apply(merge_json, axis=1)
+        result = result[['lon', 'lat', 't', 'properties']]
+        return result.to_dict(orient='records')
 
     # build the GeoDataFrame
     gdf = (

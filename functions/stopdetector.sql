@@ -40,7 +40,7 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
-    if df.shape[0] <= 1:
+    if df.empty or df.t.nunique() <= 1:
         # Return no know stops
         return []
 

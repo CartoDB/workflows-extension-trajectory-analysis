@@ -50,7 +50,7 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
-    if df.shape[0] <= 1:
+    if df.empty or df.t.nunique() <= 1:
         # Return the original trajectory
         df['logs'] = 'A valid trajectory should have at least two points'
         return df.to_dict(orient='records')

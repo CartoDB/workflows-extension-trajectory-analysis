@@ -31,6 +31,10 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
+    # Check if trajectory has enough unique timestamps
+    if df.empty or df.t.nunique() <= 1:
+        return None
+
     # build the GeoDataFrame
     gdf = (
       gpd.GeoDataFrame(

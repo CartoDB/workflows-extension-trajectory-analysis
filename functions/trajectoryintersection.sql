@@ -47,7 +47,7 @@ def main(
       .set_index('t')
     )
 
-    if gdf.shape[0] <= 1:
+    if df.empty or df.t.nunique() <= 1:
         if shapely.intersects(gdf.geometry.iloc[0], polygon):
             return trajectory
         else:

@@ -60,6 +60,10 @@ def main(
     # build the DataFrame
     df = pd.DataFrame.from_records(trajectory)
 
+    # Handle empty trajectory case
+    if df.empty:
+        return None
+
     # build the GeoDataFrame
     gdf = (
         gpd.GeoDataFrame(
@@ -72,7 +76,7 @@ def main(
     )
 
 
-    if gdf.shape[0] <= 1 or distance_from == 'First Point':
+    if df.t.nunique() <= 1 or distance_from == 'First Point':
         distance = gdf.iloc[0].geometry.distance(position)
         conversion = get_conversion(unit, 'm')
         return distance * correction_factor / conversion.distance
