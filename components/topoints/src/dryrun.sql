@@ -1,35 +1,54 @@
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE TABLE IF NOT EXISTS
-        `%s`
-    (
-        %s
-    ) OPTIONS (
+    CREATE OR REPLACE TABLE `%s`
+    OPTIONS (
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-    );
+    )
+    AS (
+        WITH CTE AS(
+            SELECT *
+            FROM `%s`
+            LIMIT 0
+        ),
+        unnested_points AS(
+            SELECT
+            CTE.* EXCEPT (%s),
+            ST_GEOGPOINT(0.0, 0.0) AS geom,
+            TIMESTAMP('1970-01-01') AS t,
+            '' AS properties
+            FROM CTE, UNNEST([]) AS tpoint
+        )
+        %s
+    )
     ''',
     REPLACE(output_table, '`', ''),
+    REPLACE(input_table, '`', ''),
+    input_tpoints_column,
     CASE WHEN NOT output_lines THEN
-        FORMAT(
-            '''
-            %s STRING,
-            geom GEOGRAPHY,
-            t TIMESTAMP,
-            properties STRING
-            ''',
-            input_traj_id_column
-        )
+        '''SELECT * FROM unnested_points'''
     WHEN output_lines THEN
         FORMAT(
             '''
-            %s STRING,
-            geom_start GEOGRAPHY,
-            t_start TIMESTAMP,
-            properties_start STRING,
-            geom_end GEOGRAPHY,
-            t_end TIMESTAMP,
-            properties_end STRING,
-            geom GEOGRAPHY
+            ,
+            numbered_points AS (
+                SELECT *,
+                ROW_NUMBER() OVER (PARTITION BY %s ORDER BY t) AS rn
+                FROM unnested_points
+            ),
+            segments AS (
+                SELECT
+                    p1.* EXCEPT (geom, t, properties, rn),
+                    p1.geom AS geom_start,
+                    p1.t AS t_start,
+                    p1.properties AS properties_start,
+                    p1.geom AS geom_end,
+                    p1.t AS t_end,
+                    p1.properties AS properties_end,
+                    ST_GEOGPOINT(0.0, 0.0) AS geom
+                FROM numbered_points p1
+                LIMIT 0
+            )
+            SELECT * FROM segments
             ''',
             input_traj_id_column
         )

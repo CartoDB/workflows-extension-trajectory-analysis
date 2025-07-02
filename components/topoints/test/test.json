@@ -16,5 +16,23 @@
             "input_tpoints_column": "tpoints",
             "output_lines":true
         }
+    },
+    {
+        "id": "ungroup_trajectories_extra_column",
+        "inputs": {
+            "input_table": "trajectories_with_extra_column",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "output_lines":false
+        }
+    },
+    {
+        "id": "ungroup_trajectories_extra_column_lines",
+        "inputs": {
+            "input_table": "trajectories_with_extra_column",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "output_lines":true
+        }
     }
 ]

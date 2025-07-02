@@ -11,7 +11,7 @@ EXECUTE IMMEDIATE FORMAT(
         ),
         unnested_points AS(
             SELECT 
-            %s AS %s, 
+            CTE.* EXCEPT (%s),
             ST_GEOGPOINT(tpoint.lon, tpoint.lat) AS geom,
             tpoint.t AS t,
             tpoint.properties AS properties
@@ -22,7 +22,7 @@ EXECUTE IMMEDIATE FORMAT(
     ''',
     REPLACE(output_table, '`', ''),
     REPLACE(input_table, '`', ''),
-    input_traj_id_column, input_traj_id_column,
+    input_tpoints_column,
     input_tpoints_column,
     CASE WHEN NOT output_lines THEN
         '''SELECT * FROM unnested_points'''
@@ -37,7 +37,7 @@ EXECUTE IMMEDIATE FORMAT(
             ),
             segments AS (
                 SELECT 
-                    p1.%s,
+                    p1.* EXCEPT (geom, t, properties, rn),
                     p1.geom AS geom_start,
                     p1.t AS t_start,
                     p1.properties AS properties_start,
@@ -51,7 +51,6 @@ EXECUTE IMMEDIATE FORMAT(
             )
             SELECT * FROM segments
             ''',
-            input_traj_id_column,
             input_traj_id_column,
             input_traj_id_column, input_traj_id_column
         )
