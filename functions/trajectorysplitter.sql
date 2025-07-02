@@ -13,7 +13,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
@@ -95,7 +95,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
@@ -160,7 +160,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
@@ -244,7 +244,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
@@ -324,7 +324,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
@@ -394,7 +394,7 @@ LANGUAGE python
 OPTIONS (
     entry_point='main',
     runtime_version='python-3.11',
-    packages=['numpy','pandas', 'geopandas','movingpandas==0.22.3']
+    packages=['numpy','pandas', 'geopandas==1.1.0','movingpandas==0.22.3']
 )
 AS r"""
 from datetime import timedelta
