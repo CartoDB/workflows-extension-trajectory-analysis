@@ -1,0 +1,13 @@
+[
+    {
+        "id": 1,
+        "inputs": {
+            "input_table": "trajectory_data_ungrouped",
+            "input_traj_id_column": "traj_id",
+            "input_tpoints_column": "tpoints",
+            "input_geom_column": "geom",
+            "input_t_column": "t",
+            "input_properties_columns": ""
+        }
+    }
+]

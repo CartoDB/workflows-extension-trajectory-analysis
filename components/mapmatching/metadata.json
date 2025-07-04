@@ -1,0 +1,70 @@
+{
+    "name": "frompoints",
+    "title": "Trajectory from Points",
+    "description": "Converts a table containing points with timestamps into trajectories, where each row represents a complete trajectory.",
+    "version": "1.0.0",
+    "icon": "trajectory_from_points.svg",
+    "cartoEnvVars": [],
+    "inputs": [
+        {
+            "name": "input_table",
+            "title": "Input table",
+            "description": "Table containing points with timestamps",
+            "type": "Table"
+        },
+        {
+            "name": "input_traj_id_column",
+            "title": "Trajectory IDs column",
+            "description": "Column containing the trajectory IDs",
+            "type": "Column",
+            "dataType": ["number","string"],
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_geom_column",
+            "title": "Geometry column",
+            "description": "The name of the column storing the geometry (point)",
+            "helper": "Your geometry column must contain single points only, not lines or polygons",
+            "type": "Column",
+            "dataType": ["geometry","geography"],
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_t_column",
+            "title": "Timestamp column",
+            "description": "Column containing the timestamps",
+            "type": "Column",
+            "dataType": ["date","datetime","time","timestamp"],
+            "parent": "input_table",
+            "noDefault": true
+        },
+        {
+            "name": "input_tpoints_column",
+            "title": "Trajectory points column name",
+            "description": "Name to be assigned to the column containing the trajectory points",
+            "type": "String",
+            "optional": false,
+            "default": "tpoints"
+        },
+        {
+            "name": "input_properties_columns",
+            "title": "Properties columns",
+            "description": "All the columns to be stored as a JSON-encoded string per timestamp",
+            "helper": "The selected columns will be stored as properties in a JSON-encoded string for each point",
+            "type": "Column",
+            "mode": "multiple",
+            "parent": "input_table",
+            "optional": true
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_table",
+            "title": "Output table",
+            "description": "The table with the transformed data",
+            "type": "Table"
+        }
+    ]
+}
