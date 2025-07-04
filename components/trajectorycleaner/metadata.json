@@ -17,6 +17,7 @@
             "title": "Trajectory IDs column",
             "description": "Column containing the trajectory IDs",
             "type": "Column",
+            "dataType": ["number","string"],
             "parent": "input_table",
             "noDefault": "true",
             "optional": false
@@ -26,6 +27,7 @@
             "title": "Trajectory points column",
             "description": "Column containing the points for each trajectory",
             "type": "Column",
+            "dataType": ["string"],
             "parent": "input_table",
             "noDefault": "true",
             "optional": false

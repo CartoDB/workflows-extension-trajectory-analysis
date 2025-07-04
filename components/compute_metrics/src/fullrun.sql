@@ -1,10 +1,16 @@
+DECLARE create_output_query STRING;
+
+-- Set variables based on whether the workflow is executed via API
+IF REGEXP_CONTAINS(output_table, r'^[^.]+\.[^.]+\.[^.]+$') THEN
+    SET create_output_query = FORMAT('CREATE TABLE IF NOT EXISTS `%s` OPTIONS (expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY))', REPLACE(output_table, '`', ''));
+ELSE
+    SET create_output_query = FORMAT('CREATE TEMPORARY TABLE `%s`', REPLACE(output_table, '`', ''));
+END IF;
+
 EXECUTE IMMEDIATE FORMAT(
     '''
-    CREATE TABLE IF NOT EXISTS
-        `%s`
-    OPTIONS (
-        expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-    ) AS
+    %s
+    AS
     WITH
         metrics_cte AS (
             SELECT
@@ -48,7 +54,7 @@ EXECUTE IMMEDIATE FORMAT(
     ON input.%s = metrics.%s
     ORDER BY input.%s
     ''',
-    REPLACE(output_table, '`', ''),
+    create_output_query,
     input_traj_id_column,
     REPLACE(input_table, '`', ''),
     input_traj_id_column,

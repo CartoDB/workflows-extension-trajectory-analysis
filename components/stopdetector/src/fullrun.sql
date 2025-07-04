@@ -1,11 +1,16 @@
+DECLARE create_output_query STRING;
+
+-- Set variables based on whether the workflow is executed via API
+IF REGEXP_CONTAINS(output_table, r'^[^.]+\.[^.]+\.[^.]+$') THEN
+    SET create_output_query = FORMAT('CREATE TABLE IF NOT EXISTS `%s` OPTIONS (expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY))', REPLACE(output_table, '`', ''));
+ELSE
+    SET create_output_query = FORMAT('CREATE TEMPORARY TABLE `%s`', REPLACE(output_table, '`', ''));
+END IF;
+
 IF method = "Points" THEN
     EXECUTE IMMEDIATE FORMAT(
         '''
-        CREATE TABLE IF NOT EXISTS
-            `%s`
-        OPTIONS (
-            expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-        )
+        %s
         AS
             SELECT
                 %s,
@@ -25,7 +30,7 @@ IF method = "Points" THEN
             ) AS s
             ORDER BY %s, s.stop_id
         ''',
-        REPLACE(output_table, '`', ''),
+        create_output_query,
         traj_id_col,
         REPLACE(input_table, '`', ''),
         traj_id_col,
@@ -37,11 +42,8 @@ IF method = "Points" THEN
 ELSEIF method = 'Segments' THEN
     EXECUTE IMMEDIATE FORMAT(
         '''
-        CREATE TABLE IF NOT EXISTS
-            `%s`
-        OPTIONS (
-            expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-        ) AS
+        %s
+        AS
             SELECT
                 %s,
                 s.stop_id,
@@ -66,7 +68,7 @@ ELSEIF method = 'Segments' THEN
             GROUP BY %s, s.stop_id
             ORDER BY %s, s.stop_id
         ''',
-        REPLACE(output_table, '`', ''),
+        create_output_query,
         traj_id_col,
         REPLACE(input_table, '`', ''),
         traj_id_col,

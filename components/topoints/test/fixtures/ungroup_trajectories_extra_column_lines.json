@@ -1,48 +1,48 @@
 {
   "output_table": [
     {
-      "geom": "LINESTRING (-8.61090 41.14533, -8.61078 41.14587)",
-      "geom_end": "POINT (-8.61078 41.14587)",
-      "geom_start": "POINT (-8.61090 41.14533)",
-      "properties_end": "{\"speed\":32.99321323510955,\"bearing\":339.7202411020653,\"temperature\":15.323269739523138}",
-      "properties_start": "{\"speed\":89.517635348694867,\"bearing\":186.89098127149734,\"temperature\":13.802250519675537}",
-      "t_end": "2014-02-15 11:26:13+00:00",
+      "traj_id": "1392463543620000658",
+      "vehicle_type": "bus",
+      "geom_start": "POINT(-8.610903 41.145327)",
       "t_start": "2014-02-15 11:25:58+00:00",
-      "traj_id": "1392463543620000658",
-      "vehicle_type": "bus"
+      "properties_start": "{\"speed\":89.517635348694867,\"bearing\":186.89098127149734,\"temperature\":13.802250519675537}",
+      "geom_end": "POINT(-8.610777 41.145867)",
+      "t_end": "2014-02-15 11:26:13+00:00",
+      "properties_end": "{\"speed\":32.99321323510955,\"bearing\":339.7202411020653,\"temperature\":15.323269739523138}",
+      "geom": "LINESTRING(-8.610903 41.145327, -8.610777 41.145867)"
     },
     {
-      "geom": "LINESTRING (-8.61068 41.14525, -8.61090 41.14533)",
-      "geom_end": "POINT (-8.61090 41.14533)",
-      "geom_start": "POINT (-8.61068 41.14525)",
-      "properties_end": "{\"speed\":89.517635348694867,\"bearing\":186.89098127149734,\"temperature\":13.802250519675537}",
-      "properties_start": "{\"speed\":84.266637615835165,\"bearing\":259.07481585683041,\"temperature\":15.521666645575507}",
-      "t_end": "2014-02-15 11:25:58+00:00",
+      "traj_id": "1392463543620000658",
+      "vehicle_type": "bus",
+      "geom_start": "POINT(-8.610678 41.145246)",
       "t_start": "2014-02-15 11:25:43+00:00",
-      "traj_id": "1392463543620000658",
-      "vehicle_type": "bus"
+      "properties_start": "{\"speed\":84.266637615835165,\"bearing\":259.07481585683041,\"temperature\":15.521666645575507}",
+      "geom_end": "POINT(-8.610903 41.145327)",
+      "t_end": "2014-02-15 11:25:58+00:00",
+      "properties_end": "{\"speed\":89.517635348694867,\"bearing\":186.89098127149734,\"temperature\":13.802250519675537}",
+      "geom": "LINESTRING(-8.610678 41.145246, -8.610903 41.145327)"
     },
     {
-      "geom": "LINESTRING (-8.58568 41.14898, -8.58651 41.14901)",
-      "geom_end": "POINT (-8.58651 41.14901)",
-      "geom_start": "POINT (-8.58568 41.14898)",
-      "properties_end": "{\"speed\":38.7,\"bearing\":172.9,\"temperature\":21.8}",
-      "properties_start": "{\"speed\":52.8,\"bearing\":185.3,\"temperature\":23.4}",
-      "t_end": "2014-04-06 16:52:29+00:00",
-      "t_start": "2014-04-06 16:52:14+00:00",
       "traj_id": "1396803119620000674",
-      "vehicle_type": "car"
-    },
-    {
-      "geom": "LINESTRING (-8.58568 41.14862, -8.58568 41.14898)",
-      "geom_end": "POINT (-8.58568 41.14898)",
-      "geom_start": "POINT (-8.58568 41.14862)",
-      "properties_end": "{\"speed\":52.8,\"bearing\":185.3,\"temperature\":23.4}",
-      "properties_start": "{\"speed\":45.2,\"bearing\":180.5,\"temperature\":22.1}",
-      "t_end": "2014-04-06 16:52:14+00:00",
+      "vehicle_type": "car",
+      "geom_start": "POINT(-8.585676 41.148621)",
       "t_start": "2014-04-06 16:51:59+00:00",
+      "properties_start": "{\"speed\":45.2,\"bearing\":180.5,\"temperature\":22.1}",
+      "geom_end": "POINT(-8.585685 41.148981)",
+      "t_end": "2014-04-06 16:52:14+00:00",
+      "properties_end": "{\"speed\":52.8,\"bearing\":185.3,\"temperature\":23.4}",
+      "geom": "LINESTRING(-8.585676 41.148621, -8.585685 41.148981)"
+    },
+    {
       "traj_id": "1396803119620000674",
-      "vehicle_type": "car"
+      "vehicle_type": "car",
+      "geom_start": "POINT(-8.585685 41.148981)",
+      "t_start": "2014-04-06 16:52:14+00:00",
+      "properties_start": "{\"speed\":52.8,\"bearing\":185.3,\"temperature\":23.4}",
+      "geom_end": "POINT(-8.586513 41.149008)",
+      "t_end": "2014-04-06 16:52:29+00:00",
+      "properties_end": "{\"speed\":38.7,\"bearing\":172.9,\"temperature\":21.8}",
+      "geom": "LINESTRING(-8.585685 41.148981, -8.586513 41.149008)"
     }
   ]
 }
