@@ -29,6 +29,101 @@ WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
 # Initialize verbose flag
 verbose = False
 
+# Geometry handling for cross-platform compatibility
+from dataclasses import dataclass
+from typing import Tuple, List, Union
+
+class GeometryComparator:
+    """Unified geometry comparator using shapely directly."""
+
+    def __init__(self, shapely_geom):
+        """Initialize with a shapely geometry object."""
+        self._shapely_geom = shapely_geom
+
+    @classmethod
+    def from_wkt(cls, wkt_string: str) -> 'GeometryComparator':
+        """Create GeometryComparator from WKT string."""
+        try:
+            geom = wkt.loads(wkt_string)
+            return cls(geom)
+        except Exception as e:
+            print(f"ERROR: Failed to parse WKT string: '{wkt_string}'")
+            print(f"ERROR: Exception: {e}")
+            raise
+
+    @classmethod
+    def from_geojson(cls, geojson_dict: dict) -> 'GeometryComparator':
+        """Create GeometryComparator from GeoJSON dictionary."""
+        try:
+            from shapely.geometry import shape
+            geom = shape(geojson_dict)
+            return cls(geom)
+        except Exception as e:
+            print(f"ERROR: Failed to parse GeoJSON: {geojson_dict}")
+            print(f"ERROR: Exception: {e}")
+            raise
+
+    @classmethod
+    def from_geography_string(cls, value: str) -> 'GeometryComparator':
+        """Create GeometryComparator from WKT or GeoJSON string. Tries WKT first, then GeoJSON, raises error otherwise."""
+        # Try WKT first
+        try:
+            geom = wkt.loads(value)
+            return cls(geom)
+        except Exception:
+            pass
+
+        # Try GeoJSON
+        try:
+            geojson_dict = json.loads(value)
+            from shapely.geometry import shape
+            geom = shape(geojson_dict)
+            return cls(geom)
+        except Exception:
+            pass
+
+        # Neither worked, raise error
+        raise ValueError(f"Could not parse as WKT or GeoJSON: {value}")
+
+    def to_wkt(self, rounding_precision=5) -> str:
+        """Convert GeometryComparator back to WKT string."""
+        from shapely.wkt import dumps
+        return dumps(self._shapely_geom, rounding_precision=5)
+
+    @property
+    def geom_type(self) -> str:
+        """Get geometry type."""
+        return self._shapely_geom.geom_type
+
+    def __eq__(self, other):
+        """Compare geometries using shapely's equals method with decimal precision."""
+        if not isinstance(other, GeometryComparator):
+            return False
+
+        return self.to_wkt() == other.to_wkt()
+
+    def __hash__(self):
+        """Hash based on WKT representation."""
+        return hash(self._shapely_geom.wkt)
+
+    def __repr__(self):
+        """String representation."""
+        return f"GeometryComparator({self.to_wkt()})"
+
+def create_geometry_comparator(value):
+    """Factory function to create appropriate geometry comparator."""
+    if isinstance(value, str):
+        # Check if it looks like WKT
+        if value.upper().startswith(('POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON')):
+            return GeometryComparator.from_wkt(value)
+    elif isinstance(value, dict):
+        # Check if it looks like GeoJSON
+        if 'type' in value and 'coordinates' in value:
+            return GeometryComparator.from_geojson(value)
+
+    # Return the original value if not a recognizable geometry
+    return value
+
 load_dotenv()
 
 bq_workflows_temp = f"`{os.getenv('BQ_TEST_PROJECT')}.{os.getenv('BQ_TEST_DATASET')}`"
@@ -36,7 +131,6 @@ sf_workflows_temp = f"{os.getenv('SF_TEST_DATABASE')}.{os.getenv('SF_TEST_SCHEMA
 
 sf_client_instance = None
 bq_client_instance = None
-
 
 def bq_client():
     global bq_client_instance
@@ -46,7 +140,6 @@ def bq_client():
         except Exception as e:
             raise Exception(f"Error connecting to BigQuery: {e}")
     return bq_client_instance
-
 
 def sf_client():
     global sf_client_instance
@@ -63,12 +156,10 @@ def sf_client():
             raise Exception(f"Error connecting to SnowFlake: {e}")
     return sf_client_instance
 
-
 def add_namespace_to_component_names(metadata):
     for component in metadata["components"]:
         component["name"] = f'{metadata["name"]}.{component["name"]}'
     return metadata
-
 
 def _encode_image(image_path):
     if not os.path.exists(image_path):
@@ -80,7 +171,6 @@ def _encode_image(image_path):
             return f"data:image/svg+xml;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         else:
             return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-
 
 def create_metadata():
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -119,7 +209,6 @@ def create_metadata():
 
     metadata["components"] = components
     return metadata
-
 
 def get_procedure_code_bq(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -175,7 +264,6 @@ def get_procedure_code_bq(component):
     )
     return procedure_code
 
-
 def get_functions_code(dir: Path = Path("functions/")):
     """Generate code to declare additonal UDFs to the package.
 
@@ -195,7 +283,6 @@ def get_functions_code(dir: Path = Path("functions/")):
 
     code =  "\n\n".join(udfs)
     return code
-
 
 def create_sql_code_bq(metadata):
     functions_code = get_functions_code()
@@ -253,7 +340,6 @@ def create_sql_code_bq(metadata):
     )
 
     return dedent(code)
-
 
 def get_procedure_code_sf(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -320,8 +406,9 @@ def get_procedure_code_sf(component):
     )
     return procedure_code
 
-
 def create_sql_code_sf(metadata):
+    functions_code = get_functions_code()
+
     procedures_code = ""
     for component in metadata["components"]:
         procedure_code = get_procedure_code_sf(component)
@@ -361,6 +448,9 @@ def create_sql_code_sf(metadata):
             DELETE FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME}
             WHERE name = '{metadata["name"]}';
 
+            -- create functions
+            {functions_code}
+
             -- create procedures
             {procedures_code}
 
@@ -373,7 +463,6 @@ def create_sql_code_sf(metadata):
 
     return code
 
-
 def deploy_bq(metadata, destination):
     print("Deploying extension to BigQuery...")
     destination = f"`{destination}`" if destination else bq_workflows_temp
@@ -385,7 +474,6 @@ def deploy_bq(metadata, destination):
     query_job = bq_client().query(sql_code)
     query_job.result()
     print("Extension correctly deployed to BigQuery.")
-
 
 def deploy_sf(metadata, destination):
     print("Deploying extension to SnowFlake...")
@@ -400,14 +488,12 @@ def deploy_sf(metadata, destination):
     cur.execute(sql_code)
     print("Extension correctly deployed to SnowFlake.")
 
-
 def deploy(destination):
     metadata = create_metadata()
     if metadata["provider"] == "bigquery":
         deploy_bq(metadata, destination)
     else:
         deploy_sf(metadata, destination)
-
 
 def substitute_vars(text: str) -> str:
     """Substitute all variables in a string with their values from the environment.
@@ -427,7 +513,6 @@ def substitute_vars(text: str) -> str:
 
     return text
 
-
 def substitute_keys(text: str, dotenv: dict[str, str]) -> str:
     """Substitute all variables in the .env file with their key.
 
@@ -441,7 +526,6 @@ def substitute_keys(text: str, dotenv: dict[str, str]) -> str:
             text = text.replace(value, f"@@{key}@@")
 
     return text
-
 
 def infer_schema_field_bq(key: str, value: Any, from_array: bool=False) -> bigquery.SchemaField:
     kwargs = dict()
@@ -526,34 +610,41 @@ def _upload_test_table_bq(filename, component):
     except Exception as e:
         pass
 
-
-def infer_schema_field_sf(key: str, value: Any) -> bigquery.SchemaField:
+def infer_schema_field_sf(key: str, value: Any) -> str:
     if isinstance(value, int):
         return "NUMBER"
     elif isinstance(value, float):
         return "FLOAT"
-
+    elif isinstance(value, bool):
+        return "BOOLEAN"
+    elif isinstance(value, list):
+        return "VARIANT"  # Use VARIANT for complex structures
+    elif isinstance(value, dict):
+        return "VARIANT"  # Use VARIANT for complex structures
     elif isinstance(value, str):
         if key.endswith("date"):
             return "DATE"
-        elif key.endswith("timestamp"):
+        elif key.endswith("timestamp") or key == "t":
             return "TIMESTAMP"
         elif key.endswith("datetime"):
             return "DATETIME"
         else:
+            # Try to create GEOGRAPHY from WKT or GeoJSON, fall back to VARCHAR if it fails
             try:
-                wkt.loads(value)
+                GeometryComparator.from_geography_string(value)
                 return "GEOGRAPHY"
             except Exception:
                 return "VARCHAR"
-
+    elif value is None:
+        return "VARCHAR"  # Default for null values
     else:
-        raise NotImplementedError(
-            f"Could not infer a Snowflake SchemaField for {value} ({type(value)})"
-        )
-
+        # Fallback for unknown types
+        return "VARCHAR"
 
 def _upload_test_table_sf(filename, component):
+    import tempfile
+    import os
+
     with open(filename) as f:
         data = []
         for l in f.readlines():
@@ -576,20 +667,74 @@ def _upload_test_table_sf(filename, component):
     create_table_sql += ");\n"
     cursor = sf_client().cursor()
     cursor.execute(create_table_sql)
-    for row in data:
-        values = {}
-        for key, value in row.items():
-            if value is None:
-                values[key] = "null"
-            elif data_types[key] in ["NUMBER", "FLOAT"]:
-                values[key] = str(value)
-            else:
-                values[key] = f"'{value}'"
-        values_string = ", ".join([values[key] for key in row.keys()])
-        insert_sql = f"INSERT INTO {sf_workflows_temp}.{table_id} ({', '.join(row.keys())}) VALUES ({values_string})"
-        cursor.execute(insert_sql)
-    cursor.close()
 
+    # For VARIANT columns with large data, use a different approach
+    has_variant = any(data_types[key] == "VARIANT" for key in data_types)
+
+    if has_variant:
+        # Create a temporary file with the data in NDJSON format
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+            for row in data:
+                # Convert VARIANT fields to proper JSON strings
+                processed_row = {}
+                for key, value in row.items():
+                    if data_types[key] == "VARIANT":
+                        processed_row[key] = json.dumps(value)
+                    else:
+                        processed_row[key] = value
+                temp_file.write(json.dumps(processed_row) + '\n')
+            temp_file_path = temp_file.name
+
+        try:
+            # Create a temporary stage
+            stage_name = f"temp_stage_{table_id}"
+            cursor.execute(f"CREATE OR REPLACE TEMPORARY STAGE {stage_name}")
+
+            # Upload the file to the stage
+            cursor.execute(f"PUT file://{temp_file_path} @{stage_name}")
+
+            # Copy from stage with PARSE_JSON for VARIANT columns
+            copy_columns = []
+            for key in data[0].keys():
+                if data_types[key] == "VARIANT":
+                    copy_columns.append(f"PARSE_JSON($1:{key}) as {key}")
+                else:
+                    copy_columns.append(f"$1:{key} as {key}")
+
+            copy_sql = f"""
+            COPY INTO {sf_workflows_temp}.{table_id}
+            FROM (
+                SELECT {', '.join(copy_columns)}
+                FROM @{stage_name}
+            )
+            FILE_FORMAT = (TYPE = JSON)
+            """
+            cursor.execute(copy_sql)
+
+        finally:
+            # Clean up
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            cursor.execute(f"DROP STAGE IF EXISTS {stage_name}")
+    else:
+        # Use regular INSERT for simple data types
+        for row in data:
+            placeholders = []
+            params = []
+
+            for key, value in row.items():
+                if value is None:
+                    placeholders.append("null")
+                elif data_types[key] in ["NUMBER", "FLOAT"]:
+                    placeholders.append(str(value))
+                else:
+                    placeholders.append("%s")
+                    params.append(str(value))
+
+            insert_sql = f"INSERT INTO {sf_workflows_temp}.{table_id} ({', '.join(row.keys())}) VALUES ({', '.join(placeholders)})"
+            cursor.execute(insert_sql, params)
+
+    cursor.close()
 
 def _get_test_results(metadata, component, progress_bar=None):
     if metadata["provider"] == "bigquery":
@@ -659,7 +804,7 @@ def _get_test_results(metadata, component, progress_bar=None):
             # TODO: improve argument passing to _run_query()
             component_results[test_id]["dry"] = _run_query(dry_run_query, component, metadata["provider"], tables)
             component_results[test_id]["full"] = _run_query(full_run_query, component, metadata["provider"], tables)
-            
+
             # Update progress bar after each test (dry + full run = 1 item)
             if progress_bar:
                 progress_bar.update(1)
@@ -670,23 +815,31 @@ def _get_test_results(metadata, component, progress_bar=None):
     return results
 
 def _build_query(workflows_temp, component_name, param_values, outputs):
-    output_sql = "\n".join(
-        f'DROP TABLE IF EXISTS {output_table};'
-        for output_table in outputs.values()
-    )
-    return f"""{output_sql}
+    statements = []
 
-    CALL {workflows_temp}.{component_name}(
+    # Add DROP TABLE statements
+    for output_table in outputs.values():
+        statements.append(f'DROP TABLE IF EXISTS {output_table}')
+
+    # Add CALL statement
+    call_statement = f"""CALL {workflows_temp}.{component_name}(
         {','.join([str(p) if p is not None else 'null' for p in param_values])}
-    );"""
+    )"""
+    statements.append(call_statement)
 
-def _run_query(query: str, component: dict, provider: str, tables: dict) -> dict[str, pd.DataFrame]:
+    return statements
+
+def _run_query(statements: list, component: dict, provider: str, tables: dict) -> dict[str, pd.DataFrame]:
     results = dict()
 
     if globals().get('verbose', False):
-        print(query)
+        for stmt in statements:
+            print(stmt)
+
     if provider == "bigquery":
-        query_job = bq_client().query(query)
+        # Join statements with newlines for BigQuery
+        combined_query = ";\n\n".join(statements)
+        query_job = bq_client().query(combined_query)
         result = query_job.result()
         for output in component["outputs"]:
             query = f"SELECT * FROM {tables[output['name']]}"
@@ -699,18 +852,44 @@ def _run_query(query: str, component: dict, provider: str, tables: dict) -> dict
                         df[column] = df[column].apply(lambda x: x.tolist())
 
             results[output["name"]] = df
-    else:
+    elif provider == "snowflake":
         cur = sf_client().cursor()
-        cur.execute(query)
+        # Execute each statement separately for Snowflake
+        for statement in statements:
+            cur.execute(statement)
+
         for output in component["outputs"]:
-            query = f"SELECT * FROM {tables[output['name']]}"
+            output_query = f"SELECT * FROM {tables[output['name']]}"
             cur = sf_client().cursor()
-            cur.execute(query)
-            # Use .fetch_pandas_all() to include column names
-            results[output["name"]] = cur.fetch_pandas_all()
+            cur.execute(output_query)
+
+            # Use fetch_pandas_all() but process JSON strings
+            df = cur.fetch_pandas_all()
+
+            # Convert column names to lowercase for consistency with BigQuery
+            df.columns = [col.lower() for col in df.columns]
+
+            # Process Snowflake's JSON string columns
+            if not df.empty:
+                for column in df.columns:
+                    # Check if this looks like a JSON string that should be parsed
+                    sample_value = df.iloc[0][column]
+                    if isinstance(sample_value, str) and (
+                        sample_value.strip().startswith('[') or
+                        sample_value.strip().startswith('{')
+                    ):
+                        try:
+                            # Parse JSON strings back to proper structures
+                            df[column] = df[column].apply(lambda x: json.loads(x) if isinstance(x, str) and x.strip() else x)
+                        except (json.JSONDecodeError, ValueError):
+                            # If JSON parsing fails, leave as string
+                            pass
+
+            results[output["name"]] = df
+    else:
+        raise NotImplementedError(f"Provider '{provider}' is not supported")
 
     return results
-
 
 def test(component):
     print("Testing extension...")
@@ -722,9 +901,22 @@ def test(component):
 
     for component in metadata["components"]:
         component_folder = os.path.join(components_folder, component["name"])
+
+        # Load test configuration to get test_sorting parameter
+        # TODO: this new read could be avoided
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(substitute_vars(f.read()))
+
+        # Create a mapping of test_id to test configuration
+        test_config_map = {str(config["id"]): config for config in test_configurations}
+
         for test_id, outputs in results[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             test_filename = os.path.join(test_folder, f"{test_id}.json")
+
+            # Get test configuration for this test_id
+            test_config = test_config_map.get(str(test_id), {})
 
             zipped_outputs = [
                 (output_name, dry_output, outputs["full"][output_name])
@@ -738,7 +930,7 @@ def test(component):
                         f"Dry run and full run schemas do not match "
                         f"in {component['title']} - {test_id} - {output_name}"
                     )
-            
+
             if str(test_id).startswith("skip_"):
                 # Don't compare results, it will only throw an error
                 # if there is an issue when running on BigQuery
@@ -747,15 +939,30 @@ def test(component):
             # Test that the results match the expected ones
             with open(test_filename, "r") as f:
                 expected = json.loads(substitute_vars(f.read()))
+
+                # Check if test_sorting is enabled (default True)
+                test_sorting = test_config.get("test_sorting", True)
+
                 for output_name, test_result_df in outputs["full"].items():
                     output = dataframe_to_dict(test_result_df)
-                    if not test_output(expected[output_name], output, decimal_places=3):
+                    expected_output = expected[output_name]
+
+                    # Normalize first
+                    output = normalize_json(output, decimal_places=5)
+                    expected_output = normalize_json(expected_output, decimal_places=5)
+
+                    # Apply sorting after normalization when test_sorting is False
+                    if not test_sorting:
+                        output = _sorted_json(output)
+                        expected_output = _sorted_json(expected_output)
+
+                    from pytest_unordered import unordered
+                    if output != unordered(expected_output):
                         raise AssertionError(
                             f"Test '{test_id}' failed for component {component['name']} and table {output_name}."
                         )
 
     print("Extension correctly tested.")
-
 
 # Pytest-based testing functions
 _test_results_cache = None
@@ -764,22 +971,22 @@ _metadata_cache = None
 def prepare_test_data():
     """Run all SQL and collect test data."""
     global _test_results_cache, _metadata_cache
-    
+
     _metadata_cache = create_metadata()
     deploy(None)
-    
+
     # Calculate total number of tests to run for progress bar
     total_tests = 0
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
-    
+
     for component in _metadata_cache["components"]:
         component_folder = os.path.join(components_folder, component["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
         total_tests += len(test_configurations)
-    
+
     # Create progress bar only if not in verbose mode
     if not verbose:
         with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
@@ -790,7 +997,7 @@ def prepare_test_data():
 def load_test_cases():
     """Generate test cases from pre-collected data."""
     import pickle
-    
+
     # Load test data from file if available
     test_data_file = os.environ.get('PYTEST_TEST_DATA_FILE')
     if test_data_file and os.path.exists(test_data_file):
@@ -805,16 +1012,29 @@ def load_test_cases():
             prepare_test_data()
         metadata_cache = _metadata_cache
         test_results_cache = _test_results_cache
-    
+
     test_cases = []
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
 
     for component in metadata_cache["components"]:
         component_folder = os.path.join(components_folder, component["name"])
+
+        # Load test configuration to get test_sorting parameter
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(substitute_vars(f.read()))
+
+        # Create a mapping of test_id to test configuration
+        test_config_map = {str(config["id"]): config for config in test_configurations}
+
         for test_id, outputs in test_results_cache[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             test_filename = os.path.join(test_folder, f"{test_id}.json")
+
+            # Get test configuration for this test_id
+            test_config = test_config_map.get(str(test_id), {})
+            test_sorting = test_config.get("test_sorting", True)
 
             # Schema test case
             test_cases.append({
@@ -822,17 +1042,19 @@ def load_test_cases():
                 "component": component,
                 "test_id": test_id,
                 "outputs": outputs,
+                "test_sorting": test_sorting,
                 "test_name": f"schema_{component['name']}_{test_id}"
             })
 
             # Results test case (skip if test_id starts with "skip_")
             if not str(test_id).startswith("skip_"):
                 test_cases.append({
-                    "test_type": "results", 
+                    "test_type": "results",
                     "component": component,
                     "test_id": test_id,
                     "outputs": outputs,
                     "test_filename": test_filename,
+                    "test_sorting": test_sorting,
                     "test_name": f"results_{component['name']}_{test_id}"
                 })
 
@@ -863,20 +1085,29 @@ def test_extension_components(test_case):
 
         for output_name, test_result_df in test_case["outputs"]["full"].items():
             output = dataframe_to_dict(test_result_df)
-            expected_normalized = normalize_json(_sorted_json(expected[output_name]), decimal_places=3)
-            result_normalized = normalize_json(_sorted_json(output), decimal_places=3)
-            assert expected_normalized == result_normalized, (
-                f"Results mismatch for {test_case['component']['name']} - {test_case['test_id']} - {output_name}"
-            )
+            expected_output = expected[output_name]
+
+            # Normalize first
+            expected_normalized = normalize_json(expected_output, decimal_places=3)
+            result_normalized = normalize_json(output, decimal_places=3)
+
+            # Apply sorting after normalization when test_sorting is False
+            if not test_case["test_sorting"]:
+                expected_normalized = _sorted_json(expected_normalized)
+                result_normalized = _sorted_json(result_normalized)
+
+            # Use unordered comparison for order-independent testing
+            from pytest_unordered import unordered
+            assert result_normalized == unordered(expected_normalized)
 
 def run_pytest_tests():
     """Run the pytest-based tests."""
     import tempfile
     import pickle
-    
+
     # Step 1: Prepare all test data and save to file
     prepare_test_data()
-    
+
     # Save test data to temporary file
     with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pkl') as f:
         pickle.dump({
@@ -884,15 +1115,15 @@ def run_pytest_tests():
             'results': _test_results_cache
         }, f)
         temp_file_path = f.name
-    
+
     # Set environment variable so pytest can find the data file
     os.environ['PYTEST_TEST_DATA_FILE'] = temp_file_path
-    
+
     try:
         # Step 2: Start pytest session
         print("Running pytest-based extension tests...")
         retcode = pytest.main(["-vv", "--tb=short", __file__ + "::test_extension_components"])
-        
+
         if retcode == 0:
             print("Extension correctly tested with pytest.")
         else:
@@ -904,7 +1135,6 @@ def run_pytest_tests():
             os.unlink(temp_file_path)
         if 'PYTEST_TEST_DATA_FILE' in os.environ:
             del os.environ['PYTEST_TEST_DATA_FILE']
-
 
 def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     """Uniformly convert a pandas DataFrame to a neste structure.
@@ -928,7 +1158,6 @@ def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     output = df.to_dict(orient="records")
     return output
 
-
 def check_schema(dry_result, full_result) -> bool:
     """Compare two different DataFrames two have the same columns."""
     dry_schema = dry_result.dtypes.astype(str).to_dict()
@@ -941,7 +1170,6 @@ def check_schema(dry_result, full_result) -> bool:
             print(f"{full_schema.keys()=}")
         return False
 
-
 def normalize_json(original, decimal_places=3):
     """Ensure that the input for a test is in an uniform format.
 
@@ -950,7 +1178,13 @@ def normalize_json(original, decimal_places=3):
     """
     # GOTCHA: dump and load to pass all values through the JSON parser, to
     # prevent any mismatch in types that cannot be inferred (i.e. Timestamp)
-    original = json.loads(json.dumps(original, default=str))
+    # But first, convert any GeometryComparator objects to WKT strings
+    def serialize_with_geom(obj):
+        if isinstance(obj, GeometryComparator):
+            return obj.to_wkt()
+        return str(obj)
+
+    original = json.loads(json.dumps(original, default=serialize_with_geom))
 
     processed = list()
     for row in _sorted_json(original):
@@ -963,10 +1197,17 @@ def normalize_json(original, decimal_places=3):
 
     return processed
 
-def normalize_element(value, decimal_places=3):
+def normalize_element(value, decimal_places=5):
     """Format a single scalar value in the desired format."""
-    if isinstance(value, dict) or isinstance(value, list):
-        return sorted(map(normalize_element, value))
+    # Try to create geometry comparator first
+    geom_comparator = create_geometry_comparator(value)
+    if isinstance(geom_comparator, GeometryComparator):
+        return geom_comparator.to_wkt()
+
+    if isinstance(value, dict):
+        return {key: normalize_element(val, decimal_places) for key, val in value.items()}
+    elif isinstance(value, list):
+        return [normalize_element(x, decimal_places) for x in value]
     elif isinstance(value, float) and math.isnan(value):
         return "nan"
     elif isinstance(value, float):
@@ -976,24 +1217,16 @@ def normalize_element(value, decimal_places=3):
     else:
         return value
 
-
 def _sorted_json(data):
-    """Recursively sort JSON-like structures (lists of dicts) to enable consistent ordering."""
+    """Recursively sort JSON-like structures (dicts only) to enable consistent ordering."""
     if isinstance(data, dict):
         return {key: _sorted_json(data[key]) for key in sorted(data)}
     elif isinstance(data, list):
-        return sorted(
-            (_sorted_json(item) for item in data),
-            key=(lambda j: json.dumps(j, default=str))
-        )
+        # Preserve all list order (important for trajectories and result rows)
+        return [_sorted_json(item) for item in data]
     else:
         return data
 
-
-def test_output(expected, result, decimal_places=3):
-    expected = normalize_json(_sorted_json(expected), decimal_places=decimal_places)
-    result = normalize_json(_sorted_json(result), decimal_places=decimal_places)
-    return expected == result
 
 
 def capture(component):
@@ -1006,22 +1239,42 @@ def capture(component):
     dotenv = dotenv_values()
     for component in metadata["components"]:
         component_folder = os.path.join(components_folder, component["name"])
+
+        # Load test configuration to get test_sorting parameter
+        # TODO: this new read could be avoided
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(substitute_vars(f.read()))
+
+        # Create a mapping of test_id to test configuration
+        test_config_map = {str(config["id"]): config for config in test_configurations}
+
         for test_id, outputs in results[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             os.makedirs(test_folder, exist_ok=True)
             test_filename = os.path.join(test_folder, f"{test_id}.json")
-            with open(test_filename, "w") as f:
-                outputs = {
-                    output_name: output_results.to_dict(orient="records")
-                    for output_name, output_results in outputs["full"].items()
-                }
 
-                contents = json.dumps(outputs, indent=2, default=str)
+            # Get test configuration for this test_id
+            test_config = test_config_map.get(str(test_id), {})
+            test_sorting = test_config.get("test_sorting", True)
+
+            with open(test_filename, "w") as f:
+                fixture_outputs = {}
+                for output_name, output_results in outputs["full"].items():
+                    output_dict = output_results.to_dict(orient="records")
+                    # Normalize first
+                    output_dict = normalize_json(output_dict, decimal_places=3)
+                    # When test_sorting is False, sort for consistent fixture capture
+                    # (set comparison will be used during testing)
+                    if not test_sorting:
+                        output_dict = _sorted_json(output_dict)
+                    fixture_outputs[output_name] = output_dict
+
+                contents = json.dumps(fixture_outputs, indent=2, default=str)
                 contents = substitute_keys(contents, dotenv=dotenv)
                 f.write(contents)
 
     print("Fixtures correctly captured.")
-
 
 def package():
     print("Packaging extension...")
@@ -1045,11 +1298,9 @@ def package():
 
     print(f"Extension correctly packaged to '{package_filename}' file.")
 
-
 def update():
     download_file("carto_extension.py", os.getcwd())
     download_file("requirements.txt", os.getcwd())
-
 
 def download_file(
     path_to_file: str,
@@ -1065,7 +1316,6 @@ def download_file(
     os.replace(tmp_path, complete_path)
 
     print(f"Downloaded {complete_url} to {complete_path}")
-
 
 def _param_type_to_bq_type(param_type):
     if param_type in [
@@ -1093,7 +1343,6 @@ def _param_type_to_bq_type(param_type):
     else:
         raise ValueError(f"Parameter type '{param_type}' not supported")
 
-
 def _param_type_to_sf_type(param_type):
     if param_type in [
         "Table",
@@ -1119,7 +1368,6 @@ def _param_type_to_sf_type(param_type):
         return ["BOOLEAN"]
     else:
         raise ValueError(f"Parameter type '{param_type}' not supported")
-
 
 def check():
     print("Checking extension...")
@@ -1153,7 +1401,6 @@ def check():
         assert field in metadata, f"Extension metadata is missing field '{field}'"
 
     print("Extension correctly checked. No errors found.")
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

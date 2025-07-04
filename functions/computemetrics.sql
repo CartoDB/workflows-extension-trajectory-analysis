@@ -112,15 +112,15 @@ def main(
         # Return the original trajectory with empty columns for computed metrics
         result = df.copy()
         if input_distance_bool:
-            result[input_distance_column] = np.nan
+            result[input_distance_column] = None
         if input_duration_bool:
-            result[input_duration_column] = np.nan
+            result[input_duration_column] = None
         if input_direction_bool:
-            result[input_direction_column] = np.nan
+            result[input_direction_column] = None
         if input_speed_bool:
-            result[input_speed_column] = np.nan
+            result[input_speed_column] = None
         if input_acceleration_bool:
-            result[input_acceleration_column] = np.nan
+            result[input_acceleration_column] = None
 
         result['properties'] = result.apply(merge_json, axis=1)
         result = result[['lon', 'lat', 't', 'properties']]
