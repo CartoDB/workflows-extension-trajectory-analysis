@@ -32,6 +32,7 @@
         "trajectorysimplifier",
         "get_values_at_timestamp",
         "trajectoryintersection",
-        "distancefromtrajectory"
+        "distancefromtrajectory",
+        "mapmatching"
     ]
 }

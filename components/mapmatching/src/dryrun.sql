@@ -1,16 +1,19 @@
--- TODO
 EXECUTE IMMEDIATE FORMAT(
     '''
     CREATE TABLE IF NOT EXISTS
         `%s`
     (
-        %s STRING,
-        %s ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>
+        % FLOAT64,
+        geom GEOGRAPHY,
+        t TIMESTAMP,
+        properties STRING,
+        road_id FLOAT64,
+        distance_to_road FLOAT64,
+        geom_road GEOGRAPHY
     ) OPTIONS (
         expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     );
     ''',
-    REPLACE(output_table, '`', ''),
     input_traj_id_column,
-    input_tpoints_column
+    REPLACE(output_table, '`', '')
 );
