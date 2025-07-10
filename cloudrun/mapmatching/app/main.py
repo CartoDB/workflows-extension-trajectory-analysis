@@ -21,16 +21,18 @@ def parse_request_input(request_json):
     call = request_json["calls"][0]
 
     input = dict(
-        latitude = call[0],
-        longitude = call[1],
-        distance_epsilon = call[2],
-        similarity_cutoff = call[3],
-        cutting_threshold = call[4],
-        random_cuts = call[5],
-        distance_threshold = call[6],
-        nxmap_bool = call[2],
-        road_id = call[3],
-        road_geom = call[4]
+        tpoints = call[0],
+        distance_epsilon = call[1],
+        similarity_cutoff = call[2],
+        cutting_threshold = call[3],
+        random_cuts = call[4],
+        distance_threshold = call[5],
+        nxmap_bool = call[6],
+        road_id = call[7],
+        road_geom = call[8],
+        start_node = call[9],
+        end_node = call[10],
+        buffer_radius = call[11]
     )
     return input
 
@@ -39,24 +41,25 @@ def extract_data(input, items):
     for item in items:
         df.update(input[item])
     df = pd.DataFrame(df)
-
     return df
 
 def solve_map_matching(input):
     absolute_start = time.time()
 
     # Format GPS trace data
-    gps_trace = extract_data(input, ['latitude', 'longitude'])
-    gps_trace = gps_trace.reset_index()
-    gps_trace.columns = ['coordinate_id','latitude','longitude']
+    gps_trace = pd.DataFrame.from_records(input["tpoints"]["tpoints"]) # extract_data(input, ['latitude', 'longitude'])
+    print(gps_trace.columns)
+    gps_trace = gps_trace.sort_values('t').reset_index()
+    gps_trace = gps_trace.rename(columns={'index': 'coordinate_id', 'lat': 'latitude', 'lon':'longitude'})
     
     # Format road network data
-    road_nw = None
+    road_nw = gpd.GeoDataFrame()
     if input["nxmap_bool"]:
-        road_nw = extract_data(input, ['road_id', 'road_geom'])
+        road_nw = extract_data(input, ['road_id', 'road_geom', 'start_node', 'end_node'])
         road_nw = road_nw.sort_values('road_id').reset_index(drop=True)
-        road_nw.columns = ['road_id','geom']
-        road_nw = gpd.GeoDataFrame(road_nw, geometry='geom')
+        road_nw.columns = ['road_id','geom','start_node','end_node']
+        road_nw.geom = road_nw.geom.apply(lambda x : wkt.loads(x))
+        road_nw = gpd.GeoDataFrame(road_nw, geometry='geom', crs='EPSG:4326')
 
     # Set advanced options
     config = {}
@@ -65,9 +68,10 @@ def solve_map_matching(input):
     config.update({'cutting_threshold': float(input['cutting_threshold'])} if input['cutting_threshold'] else {})
     config.update({'random_cuts': int(input['random_cuts'])} if input['random_cuts'] else {})
     config.update({'distance_threshold': float(input['distance_threshold'])} if input['distance_threshold'] else {})
+    buffer_radius = input["buffer_radius"]
 
     # Run Map-matching
-    mm = MappyMatch(gps_trace, road_nw, 'LCSS', config, verbose = True)
+    mm = MappyMatch(gps_trace, road_nw, buffer_radius, 'LCSS', config, verbose = True)
     solution_found = mm.solve()
     if solution_found:
         output = mm.res.copy()
