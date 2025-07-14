@@ -2,12 +2,9 @@ from flask import Flask, request, jsonify
 import logging
 import os
 import time
-
-import geopandas as gpd
 import pandas as pd
 
 from map_matching import MappyMatch
-from shapely import wkt
 
 app = Flask(__name__)
 
@@ -27,39 +24,22 @@ def parse_request_input(request_json):
         cutting_threshold = call[3],
         random_cuts = call[4],
         distance_threshold = call[5],
-        nxmap_bool = call[6],
-        road_id = call[7],
-        road_geom = call[8],
-        start_node = call[9],
-        end_node = call[10],
-        buffer_radius = call[11]
+        road_nw = call[6],
+        buffer_radius = call[7]
     )
     return input
-
-def extract_data(input, items):
-    df = {}
-    for item in items:
-        df.update(input[item])
-    df = pd.DataFrame(df)
-    return df
 
 def solve_map_matching(input):
     absolute_start = time.time()
 
+    # Set road network
+    road_nw = input["road_nw"]
+
     # Format GPS trace data
-    gps_trace = pd.DataFrame.from_records(input["tpoints"]["tpoints"]) # extract_data(input, ['latitude', 'longitude'])
+    gps_trace = pd.DataFrame.from_records(input["tpoints"])
     print(gps_trace.columns)
     gps_trace = gps_trace.sort_values('t').reset_index()
     gps_trace = gps_trace.rename(columns={'index': 'coordinate_id', 'lat': 'latitude', 'lon':'longitude'})
-    
-    # Format road network data
-    road_nw = gpd.GeoDataFrame()
-    if input["nxmap_bool"]:
-        road_nw = extract_data(input, ['road_id', 'road_geom', 'start_node', 'end_node'])
-        road_nw = road_nw.sort_values('road_id').reset_index(drop=True)
-        road_nw.columns = ['road_id','geom','start_node','end_node']
-        road_nw.geom = road_nw.geom.apply(lambda x : wkt.loads(x))
-        road_nw = gpd.GeoDataFrame(road_nw, geometry='geom', crs='EPSG:4326')
 
     # Set advanced options
     config = {}

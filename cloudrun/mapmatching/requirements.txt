@@ -7,4 +7,6 @@ numpy==1.23.5
 shapely==2.0.7
 pyproj==3.3.0
 networkx==2.7.1
+pyarrow==10.0.1
 mappymatch
+fsspec[http]

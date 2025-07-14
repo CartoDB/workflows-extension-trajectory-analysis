@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Optional
+from fsspec.implementations.http import HTTPFileSystem
 
 import geopandas as gpd
 import pandas as pd
-import numpy as np
-import random
 
 from mappymatch.constructs.geofence import Geofence
 from mappymatch.constructs.trace import Trace
@@ -15,102 +14,95 @@ import networkx as nx
 from pyproj import CRS
 from shapely.ops import unary_union
 
+def load_network_from_gcs(url, xmin, ymin, xmax, ymax):
+    return gpd.read_parquet(url, filesystem=HTTPFileSystem(), bbox=(xmin, ymin, xmax, ymax))
+
+def nx_graph_as_dict(
+        gdf_road : gpd.GeoDataFrame, 
+        id : Optional[str] = 'geoid',
+        geometry : Optional[str] = 'geom',
+        origin : Optional[str] = 'start_node',
+        destination : Optional[str] = 'end_node' 
+    ):
+
+    gdf_road = gdf_road.to_crs('EPSG:3857').copy() # Same CRS as gps trace
+
+    G = nx.MultiGraph() # TODO: review whether to allow MultiDiGraph
+    for idx, row in gdf_road.iterrows():
+        G.add_edge(row[origin], row[destination], key=row[id], geometry=row[geometry])
+
+    crs = CRS.from_epsg(3857) 
+    crs_wkt = crs.to_wkt()
+    graph_metadata = {"geometry_key": "geometry", "crs_key": "crs", "crs": crs_wkt}
+
+    d = json_graph.node_link_data(G)
+    d["graph"] = graph_metadata
+    for link in d["links"]:
+        link["geometry"] = link["geometry"].wkt
+
+    return d
+
+def gcs_network_to_dict(
+        url : str,
+        geofence : Geofence,
+        id : Optional[str] = 'geoid',
+        geometry : Optional[str] = 'geom',
+        origin : Optional[str] = 'start_node',
+        destination : Optional[str] = 'end_node' 
+    ):
+
+    xmin, ymin, xmax, ymax = geofence.geometry.bounds
+    gdf = load_network_from_gcs(url, xmin, ymin, xmax, ymax)
+    return nx_graph_as_dict(gdf, id, geometry, origin, destination)
 
 @dataclass(repr = False)
 class MappyMatch:
-    gps_trace: pd.DataFrame
-    road_nw: Optional[gpd.GeoDataFrame] = field(default = gpd.GeoDataFrame)
-    padding: Optional[int] = field(default = None)
+    gps_trace : pd.DataFrame
+    road_nw : Optional[str] = field(default = "OSM")
+    padding : Optional[int] = field(default = None)
     _matcher : Optional[str] = field(default = "LCSS")
     config : Optional[dict] = field(default = None)
     verbose : bool = field(default = True)
 
     def __post_init__(self):
         self.gps_trace = self.gps_trace.sort_values("coordinate_id")
-        if not self.road_nw.empty:
-            self.road_nw = self.road_nw.sort_values("road_id")
+        self.nxmap = None
+        self.grapgdict = None
+        self.geofence = None
         
         if self.verbose:
+            print("Network:", self.road_nw)
             print("Data shape:", self.gps_trace.shape)
             print(self.gps_trace.head())
-            print("Network map:", 'None' if self.road_nw.empty else self.road_nw.shape)
             print("Config: ", self.config)
-
-    def _create_graph_dict(self):
-        """
-        Creates a graph dictionary from the road network, optionally intersected with a buffer 
-        around points to limit spatial extent and improve performance.
-        
-        Parameters:
-        - padding: Buffer radius in the units of the GeoDataFrame's CRS (default is meters).
-        """
-
-        # TODO: should we always apply padding? Or should we skip it when network is small?
-        # This needs to be done in SQL to reduce the size of the network and avoid limit errors
-        """
-        if self.padding:
-            gps = gpd.GeoDataFrame(
-                self.gps_trace,
-                geometry=gpd.points_from_xy(self.gps_trace['longitude'], self.gps_trace['latitude']),
-                crs="EPSG:4326"
-            )
-            buffer_geom = unary_union(gps.to_crs('EPSG:3857').buffer(self.padding).to_crs('EPSG:4326'))
-            filtered_roads = self.road_nw[self.road_nw.intersects(buffer_geom)]
-        else:
-            filtered_roads = self.road_nw
-        """
-        filtered_roads = self.road_nw.to_crs('EPSG:3857') # same crs as gps trace
-
-        # TODO: review is allow MultiDiGraph too, though fails if no path is found...
-        G = nx.MultiGraph()
-        for idx, row in filtered_roads.iterrows():
-            G.add_edge(
-                row['start_node'],
-                row['end_node'],
-                id=row['road_id'],
-                geometry=row['geom']
-            )
-
-        crs = CRS.from_epsg(3857) 
-        crs_wkt = crs.to_wkt()
-        graph_metadata = {
-            "geometry_key": "geometry",
-            "crs_key": "crs",
-            "crs": crs_wkt
-        }
-
-        d = json_graph.node_link_data(G)
-        d["graph"] = graph_metadata
-        for link in d["links"]:
-            link["geometry"] = link["geometry"].wkt
-
-        return d
 
     
     def solve(self):
 
+        # Create the Trace
         if self.verbose:
             print('Building trace...')
-
         self.trace = Trace.from_dataframe(
             self.gps_trace,
             lat_column="latitude",    
             lon_column="longitude",   
-            xy=True                     # Converts lat/lon to web mercator (EPSG:3857) as cartesian distance is used
+            xy=True # Converts lat/lon to web mercator (EPSG:3857) as cartesian distance is used
         )
 
+        # Create the Geofence
+        if self.verbose:
+            print('Building georeference...')
+        self.geofence = Geofence.from_trace(self.trace, padding=self.padding)
+
         if self._matcher == 'LCSS':
-            if self.road_nw.empty:
-                if self.verbose:
-                    print('Building georeference...')
-                self.geofence = Geofence.from_trace(self.trace, padding=self.padding)
-                if self.verbose:
-                    print('Building nxmap...')
-                self.nxmap = NxMap.from_geofence(self.geofence)
+            # Create the NxMap
+            if self.verbose:
+                print('Building nxmap...')
+            if self.road_nw == 'OMF':
+                url = "https://storage.googleapis.com/data_science_public/road_networks/overture_madrid_geo.parquet"
+                self.nxmap = NxMap.from_dict(gcs_network_to_dict(url, self.geofence))
             else:
-                if self.verbose:
-                    print('Building nxmap...')
-                self.nxmap = NxMap.from_dict(self._create_graph_dict())
+                self.nxmap = NxMap.from_geofence(self.geofence)
 
             if self.verbose:
                 print('Running map marching...')

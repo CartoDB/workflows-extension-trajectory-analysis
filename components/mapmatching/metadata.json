@@ -13,13 +13,6 @@
             "type": "Table"
         },
         {
-            "name": "roads_table",
-            "title": "Road network table",
-            "description": "Table containing the road network",
-            "optional": true,
-            "type": "Table"
-        },
-        {
             "name": "input_traj_id_column",
             "title": "Trajectory IDs column",
             "description": "Column containing the trajectory IDs",
@@ -40,73 +33,13 @@
             "optional": false
         },
         {
-            "name": "osm_road_bool",
-            "title": "Use default OSM road network",
-            "description": "If enabled, it will use a OSM network to match the trajectories, otherwise, user can input their own road network.",
-            "helper": "If enabled, it will use a OSM network to match the trajectories, otherwise, user can input their own road network.",
-            "type": "Boolean",
-            "default": true,
+            "name": "road_network",
+            "title": "Select the road network to match",
+            "description": "The road network provider.",
+            "helper": "The road network provider.",
+            "type": "Selection",
+            "options": ["Open Street Maps", "Overture Maps Foundation"],
             "optional": false
-        },
-        {
-            "name": "road_id",
-            "title": "Road segment ID",
-            "description": "The column containing the unique road segment ID",
-            "type": "Column",
-            "parent": "roads_table",
-            "dataType": ["number","string"],
-            "optional": false,
-            "showIf": [
-                {
-                    "parameter": "osm_road_bool",
-                    "value": false
-                }
-            ]
-        },
-        {
-            "name": "road_geom",
-            "title": "Road segment geometry",
-            "description": "The column containing geometry of each road segment",
-            "type": "Column",
-            "parent": "roads_table",
-            "dataType": ["geometry","geography"],
-            "optional": false,
-            "showIf": [
-                {
-                    "parameter": "osm_road_bool",
-                    "value": false
-                }
-            ]
-        },
-        {
-            "name": "start_node",
-            "title": "Start-node column",
-            "description": "The column containing the start node ID",
-            "type": "Column",
-            "parent": "roads_table",
-            "dataType": ["number","string"],
-            "optional": false,
-            "showIf": [
-                {
-                    "parameter": "osm_road_bool",
-                    "value": false
-                }
-            ]
-        },
-        {
-            "name": "end_node",
-            "title": "End-node column",
-            "description": "The column containing the end node ID",
-            "type": "Column",
-            "parent": "roads_table",
-            "dataType": ["number","string"],
-            "optional": false,
-            "showIf": [
-                {
-                    "parameter": "osm_road_bool",
-                    "value": false
-                }
-            ]
         },
         {
             "name": "projection_bool",
