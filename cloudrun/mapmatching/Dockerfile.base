@@ -7,11 +7,8 @@ WORKDIR /app
 # copy the requirements file used for dependencies
 COPY requirements.txt .
 
-# Install metis
-RUN apt-get update -y && apt-get install -y libmetis-dev
-
 # Install any needed packages specified in requirements.txt
-RUN apt-get install -y gdal-bin libgdal-dev g++
+RUN apt-get update && apt-get install -y gdal-bin libgdal-dev g++
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
 
 # Copy the rest of the working directory contents into the container at /app
