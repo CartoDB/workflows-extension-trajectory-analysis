@@ -6,6 +6,7 @@ CREATE OR REPLACE FUNCTION `cartodb-on-gcp-datascience.mapmatching._map_matching
         random_cuts INT64,
         distance_threshold FLOAT64,
         road_nw STRING,
+        road_subtype STRING,
         buffer_radius INT64
 ) RETURNS JSON 
 REMOTE WITH CONNECTION `267312430260.us.tb-connection-hackathon`  

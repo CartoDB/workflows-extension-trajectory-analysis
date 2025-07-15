@@ -42,6 +42,26 @@
             "optional": false
         },
         {
+            "name": "road_omv_subtype",
+            "title": "Filter by category of transportation segment",
+            "description": "The broad category of transportation segment. It should not be confused with a transport mode, as a segment kind has an (implied) set of default transport modes.",
+            "helper": "The broad category of transportation segment. It should not be confused with a transport mode, as a segment kind has an (implied) set of default transport modes.",
+            "type": "Selection",
+            "options": ["Road", "Rail", "Water", "All"],
+            "mode": "single",
+            "showIf": [{"parameter": "road_network", "value": "Overture Maps Foundation"}]
+        },
+        {
+            "name": "road_osm_subtype",
+            "title": "Filter by category of transportation segment",
+            "description": "The type of street network to retrieve.",
+            "helper": "The type of street network to retrieve.",
+            "type": "Selection",
+            "options": ["Drive", "Bike", "Walk", "All"],
+            "mode": "single",
+            "showIf": [{"parameter": "road_network", "value": "Open Street Maps"}]
+        },
+        {
             "name": "projection_bool",
             "title": "Return projected trajectories",
             "description": "If enabled, it will return projected trajectories; otherwise, it will return original trajectories.",

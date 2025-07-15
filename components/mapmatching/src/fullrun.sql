@@ -1,5 +1,6 @@
 DECLARE create_output_query STRING;
 DECLARE road_nw STRING;
+DECLARE road_st STRING;
 
 -- Set variables based on whether the workflow is executed via API
 IF REGEXP_CONTAINS(output_table, r'^[^.]+\.[^.]+\.[^.]+$') THEN
@@ -8,11 +9,16 @@ ELSE
     SET create_output_query = FORMAT('CREATE TEMPORARY TABLE `%s`', REPLACE(output_table, '`', ''));
 END IF;
 
+-- Set road network params
 SET road_nw = CASE road_network
-        WHEN 'Overture Maps Foundation' THEN 'OMF'
-        ELSE 'OSM'
-    END;
-    
+    WHEN 'Overture Maps Foundation' THEN 'OMF'
+    ELSE 'OSM'
+END;
+SET road_st = CASE road_nw
+    WHEN 'OMF' THEN LOWER(road_omv_subtype)
+    ELSE LOWER(road_osm_subtype)
+END;
+
 -- TODO: decide what is the best way to output the data
 EXECUTE IMMEDIATE FORMAT(
     '''
@@ -26,6 +32,7 @@ EXECUTE IMMEDIATE FORMAT(
             %f,
             %d,
             %f,
+            '%s',
             '%s',
             %d
         ) result
@@ -67,6 +74,7 @@ EXECUTE IMMEDIATE FORMAT(
     CAST(random_cuts AS INT64),
     distance_threshold,
     road_nw,
+    road_st,
     CAST(buffer_radius AS INT64),
     REPLACE(input_table, '`', ''),
     input_traj_id_column,

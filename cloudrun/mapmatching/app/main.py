@@ -25,15 +25,18 @@ def parse_request_input(request_json):
         random_cuts = call[4],
         distance_threshold = call[5],
         road_nw = call[6],
-        buffer_radius = call[7]
+        road_subtype = call[7],
+        buffer_radius = call[8]
     )
     return input
 
 def solve_map_matching(input):
     absolute_start = time.time()
 
-    # Set road network
+    # Set road network data
     road_nw = input["road_nw"]
+    road_subtype = input["road_subtype"].lower()
+    buffer_radius = input["buffer_radius"]
 
     # Format GPS trace data
     gps_trace = pd.DataFrame.from_records(input["tpoints"])
@@ -48,10 +51,9 @@ def solve_map_matching(input):
     config.update({'cutting_threshold': float(input['cutting_threshold'])} if input['cutting_threshold'] else {})
     config.update({'random_cuts': int(input['random_cuts'])} if input['random_cuts'] else {})
     config.update({'distance_threshold': float(input['distance_threshold'])} if input['distance_threshold'] else {})
-    buffer_radius = input["buffer_radius"]
 
     # Run Map-matching
-    mm = MappyMatch(gps_trace, road_nw, buffer_radius, 'LCSS', config, verbose = True)
+    mm = MappyMatch(gps_trace, road_nw, road_subtype, buffer_radius, 'LCSS', config, verbose = True)
     solution_found = mm.solve()
     if solution_found:
         output = mm.res.copy()

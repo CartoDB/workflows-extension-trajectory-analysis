@@ -5,6 +5,7 @@ from fsspec.implementations.http import HTTPFileSystem
 import geopandas as gpd
 import pandas as pd
 
+from mappymatch.maps.nx.readers.osm_readers import NetworkType
 from mappymatch.constructs.geofence import Geofence
 from mappymatch.constructs.trace import Trace
 from mappymatch.maps.nx.nx_map import NxMap
@@ -14,8 +15,11 @@ import networkx as nx
 from pyproj import CRS
 from shapely.ops import unary_union
 
-def load_network_from_gcs(url, xmin, ymin, xmax, ymax):
-    return gpd.read_parquet(url, filesystem=HTTPFileSystem(), bbox=(xmin, ymin, xmax, ymax))
+def load_network_from_gcs(url, filters, xmin, ymin, xmax, ymax):
+    if filters:
+        return gpd.read_parquet(url, filesystem=HTTPFileSystem(), filters=filters, bbox=(xmin, ymin, xmax, ymax))
+    else:
+        return gpd.read_parquet(url, filesystem=HTTPFileSystem(), bbox=(xmin, ymin, xmax, ymax))
 
 def nx_graph_as_dict(
         gdf_road : gpd.GeoDataFrame, 
@@ -45,6 +49,7 @@ def nx_graph_as_dict(
 def gcs_network_to_dict(
         url : str,
         geofence : Geofence,
+        filters: Optional[list] = None,
         id : Optional[str] = 'geoid',
         geometry : Optional[str] = 'geom',
         origin : Optional[str] = 'start_node',
@@ -52,13 +57,14 @@ def gcs_network_to_dict(
     ):
 
     xmin, ymin, xmax, ymax = geofence.geometry.bounds
-    gdf = load_network_from_gcs(url, xmin, ymin, xmax, ymax)
+    gdf = load_network_from_gcs(url, filters, xmin, ymin, xmax, ymax)
     return nx_graph_as_dict(gdf, id, geometry, origin, destination)
 
 @dataclass(repr = False)
 class MappyMatch:
     gps_trace : pd.DataFrame
     road_nw : Optional[str] = field(default = "OSM")
+    road_subtype : Optional[str] = field(default = None)
     padding : Optional[int] = field(default = None)
     _matcher : Optional[str] = field(default = "LCSS")
     config : Optional[dict] = field(default = None)
@@ -69,9 +75,17 @@ class MappyMatch:
         self.nxmap = None
         self.grapgdict = None
         self.geofence = None
+        self.filters = None
+
+        self.osm_network_types = {
+            'all' : NetworkType.ALL,
+            'drive' : NetworkType.DRIVE,
+            'bike' : NetworkType.BIKE,
+            'walk' : NetworkType.WALK
+        }
         
         if self.verbose:
-            print("Network:", self.road_nw)
+            print("Network:", self.road_nw, "Subtype:", self.road_subtype)
             print("Data shape:", self.gps_trace.shape)
             print(self.gps_trace.head())
             print("Config: ", self.config)
@@ -99,10 +113,13 @@ class MappyMatch:
             if self.verbose:
                 print('Building nxmap...')
             if self.road_nw == 'OMF':
+                if self.road_subtype != 'all':
+                    self.filters = [[('subtype', '==', self.road_subtype)]] 
                 url = "https://storage.googleapis.com/data_science_public/road_networks/overture_madrid_geo.parquet"
-                self.nxmap = NxMap.from_dict(gcs_network_to_dict(url, self.geofence))
+                self.nxmap = NxMap.from_dict(gcs_network_to_dict(url, self.geofence, self.filters))
             else:
-                self.nxmap = NxMap.from_geofence(self.geofence)
+                self.filters = self.osm_network_types[self.road_subtype]
+                self.nxmap = NxMap.from_geofence(self.geofence, network_type = self.filters)
 
             if self.verbose:
                 print('Running map marching...')
