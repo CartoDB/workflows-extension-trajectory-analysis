@@ -1,3 +1,3 @@
-# Detect Stops
+# Compute Metrics
 
-For a given set of trajectories, detect all stops that happen in them. These stops are defined based on a duration and radius, and the component can be configured to return the segments that are considered stops or a set of points with stop information.
+Computes derived metrics for segments (consecutive points) within trajectories, including distances, durations, directions, speeds, and accelerations of specified units. These metrics are included as a new field in the properties section of the trajectory column.
