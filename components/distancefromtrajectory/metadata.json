@@ -96,6 +96,21 @@
             "optional": true
         },
         {
+            "name": "position_id_col",
+            "title": "Position ID column",
+            "description": "Column from the positions table to identify which position the distance was computed from",
+            "type": "Column",
+            "parent": "input_table_position",
+            "optional": false,
+            "dataType": ["number", "string"],
+            "showIf": [
+                {
+                    "parameter": "return_position_properties",
+                    "value": false
+                }
+            ]
+        },
+        {
             "name": "distance_from",
             "title": "Distance from",
             "description": "Defines the point in the trajectory from which the distance will be computed",

@@ -24,15 +24,13 @@ EXECUTE IMMEDIATE FORMAT(
     REPLACE(output_table, '`', ''),
     REPLACE(input_table, '`', ''),
     REPLACE(input_table_position, '`', ''),
-    CASE WHEN return_position_properties AND position_key_col IS NOT NULL THEN
-        FORMAT(
-            't.* , p.* EXCEPT ( %s )',
-            position_key_col
-        )
-    WHEN return_position_properties AND position_key_col IS NULL THEN
+    CASE WHEN return_position_properties THEN
         't.*, p.*'
     ELSE
-        't.*'
+        FORMAT(
+            't.*, p.%s',
+            position_id_col
+        )
     END,
     distance_output_col
 );

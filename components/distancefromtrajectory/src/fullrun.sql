@@ -54,8 +54,9 @@ EXECUTE IMMEDIATE FORMAT(
         )
     ELSE
         FORMAT(
-            't.* EXCEPT (%s)',
-            traj_id_col
+            't.* EXCEPT (%s), p.%s',
+            traj_id_col,
+            position_id_col
         )
     END,
     CASE WHEN join_type = 'Cross Join' THEN

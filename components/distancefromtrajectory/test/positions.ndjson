@@ -1,1 +1,1 @@
-{"id": "pos_001", "name": "test", "key_pos": "A", "geom":"POINT(-8.6110 41.1452)"}
+{"id": "pos_001", "name": "test", "key_pos": "A", "position_id": "P1", "geom":"POINT(-8.6110 41.1452)"}
