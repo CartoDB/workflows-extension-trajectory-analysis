@@ -125,16 +125,27 @@ class MappyMatch:
                 print('Running map marching...')
             self.matcher = LCSSMatcher(self.nxmap, **self.config)
 
-        self.matches = self.matcher.match_trace(self.trace)
-        res = self.matches.matches_to_geodataframe()
-        res = res.to_crs('EPSG:4326')
-        res.road_id = res.road_id.astype(str)
-        res['geometry'] = res['geom'].astype(str)
-        self.res = self.gps_trace.merge(res[['coordinate_id', 'road_id', 'distance_to_road', 'geometry']], on='coordinate_id').copy()
+        try:
+            self.matches = self.matcher.match_trace(self.trace)
+            res = self.matches.matches_to_geodataframe()
+            res = res.to_crs('EPSG:4326')
+            res.road_id = res.road_id.astype(str)
+            res['geometry'] = res['geom'].astype(str)
+            self.res = self.gps_trace.merge(res[['coordinate_id', 'road_id', 'distance_to_road', 'geometry']], on='coordinate_id').copy()
 
-        if self.verbose:
-            print('Done!')
+            if self.verbose:
+                print('Done!')
 
-        self.solution_found = True
+            self.solution_found = True
+
+        except nx.NetworkXNoPath:
+            print("No solution found")
+            self.res = self.gps_trace.copy()
+            self.res['geometry'] = None
+            self.res['geom'] = None
+            self.res['road_id'] = None
+            self.res['distance_to_road'] = None
+
+            self.solution_found = False
         
         return self.solution_found
