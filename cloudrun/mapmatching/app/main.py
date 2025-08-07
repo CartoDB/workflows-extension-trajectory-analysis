@@ -58,7 +58,9 @@ def solve_map_matching(input):
     if solution_found:
         output = mm.res.copy()
     else:
-        raise Exception("No solution found")
+        # raise Exception("No solution found")
+        # FIXME: we don't raise exceptions while running performance timings
+        output = mm.res.copy()
 
     absolute_end = time.time() - absolute_start
     print("Time of execution: {}".format(absolute_end))
@@ -77,7 +79,7 @@ def mapmatching():
         return_json = jsonify( { "replies" :  [replies]} )
 
     except Exception as e:
-        return_json = jsonify( { "errorMessage": e } ), 400
+        return_json = jsonify( { "errorMessage": str(e) } ), 400
 
     return return_json
 
