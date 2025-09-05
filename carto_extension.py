@@ -1,25 +1,31 @@
-from dotenv import load_dotenv, dotenv_values
-from google.cloud import bigquery
-from sys import argv
-from textwrap import dedent, indent
-from uuid import uuid4
 import argparse
 import base64
-from shapely import wkt
 import hashlib
-import json
-import os
-import re
-import snowflake.connector
-import zipfile
 import io
-import urllib.request
-import pandas as pd
-import numpy as np
+import json
 import math
-from typing import Any
+import os
+import pickle
+import re
+import tempfile
+import urllib.request
+import zipfile
 from pathlib import Path
+from sys import argv
+from textwrap import dedent
+from typing import Any
+from uuid import uuid4
+
+import numpy as np
+import pandas as pd
 import pytest
+import snowflake.connector
+import toml
+from dotenv import dotenv_values, load_dotenv
+from google.cloud import bigquery
+from shapely import wkt
+from shapely.geometry import shape
+from shapely.wkt import dumps
 from tqdm import tqdm
 
 WORKFLOWS_TEMP_SCHEMA = "WORKFLOWS_TEMP"
@@ -29,19 +35,20 @@ WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
 # Initialize verbose flag
 verbose = False
 
-# Geometry handling for cross-platform compatibility
-from dataclasses import dataclass
-from typing import Tuple, List, Union
 
 class GeometryComparator:
-    """Unified geometry comparator using shapely directly."""
+    """Unified geometry comparator using shapely directly.
+
+    When reusing test suites from BigQuery to Snowflake, there was the need to
+    have a single, unified interface capable of handling both WKT and GeoJSON.
+    """
 
     def __init__(self, shapely_geom):
         """Initialize with a shapely geometry object."""
         self._shapely_geom = shapely_geom
 
     @classmethod
-    def from_wkt(cls, wkt_string: str) -> 'GeometryComparator':
+    def from_wkt(cls, wkt_string: str) -> "GeometryComparator":
         """Create GeometryComparator from WKT string."""
         try:
             geom = wkt.loads(wkt_string)
@@ -52,10 +59,9 @@ class GeometryComparator:
             raise
 
     @classmethod
-    def from_geojson(cls, geojson_dict: dict) -> 'GeometryComparator':
+    def from_geojson(cls, geojson_dict: dict) -> "GeometryComparator":
         """Create GeometryComparator from GeoJSON dictionary."""
         try:
-            from shapely.geometry import shape
             geom = shape(geojson_dict)
             return cls(geom)
         except Exception as e:
@@ -64,19 +70,19 @@ class GeometryComparator:
             raise
 
     @classmethod
-    def from_geography_string(cls, value: str) -> 'GeometryComparator':
-        """Create GeometryComparator from WKT or GeoJSON string. Tries WKT first, then GeoJSON, raises error otherwise."""
-        # Try WKT first
+    def from_geography_string(cls, value: str) -> "GeometryComparator":
+        """Create GeometryComparator from WKT or GeoJSON string.
+        
+        Tries WKT first, then GeoJSON, raises error otherwise.
+        """
         try:
             geom = wkt.loads(value)
             return cls(geom)
         except Exception:
             pass
 
-        # Try GeoJSON
         try:
             geojson_dict = json.loads(value)
-            from shapely.geometry import shape
             geom = shape(geojson_dict)
             return cls(geom)
         except Exception:
@@ -87,8 +93,7 @@ class GeometryComparator:
 
     def to_wkt(self, rounding_precision=5) -> str:
         """Convert GeometryComparator back to WKT string."""
-        from shapely.wkt import dumps
-        return dumps(self._shapely_geom, rounding_precision=5)
+        return dumps(self._shapely_geom, rounding_precision=rounding_precision)
 
     @property
     def geom_type(self) -> str:
@@ -110,19 +115,6 @@ class GeometryComparator:
         """String representation."""
         return f"GeometryComparator({self.to_wkt()})"
 
-def create_geometry_comparator(value):
-    """Factory function to create appropriate geometry comparator."""
-    if isinstance(value, str):
-        # Check if it looks like WKT
-        if value.upper().startswith(('POINT', 'LINESTRING', 'POLYGON', 'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON')):
-            return GeometryComparator.from_wkt(value)
-    elif isinstance(value, dict):
-        # Check if it looks like GeoJSON
-        if 'type' in value and 'coordinates' in value:
-            return GeometryComparator.from_geojson(value)
-
-    # Return the original value if not a recognizable geometry
-    return value
 
 load_dotenv()
 
@@ -132,6 +124,7 @@ sf_workflows_temp = f"{os.getenv('SF_TEST_DATABASE')}.{os.getenv('SF_TEST_SCHEMA
 sf_client_instance = None
 bq_client_instance = None
 
+
 def bq_client():
     global bq_client_instance
     if bq_client_instance is None:
@@ -140,6 +133,7 @@ def bq_client():
         except Exception as e:
             raise Exception(f"Error connecting to BigQuery: {e}")
     return bq_client_instance
+
 
 def sf_client():
     global sf_client_instance
@@ -156,10 +150,12 @@ def sf_client():
             raise Exception(f"Error connecting to SnowFlake: {e}")
     return sf_client_instance
 
+
 def add_namespace_to_component_names(metadata):
     for component in metadata["components"]:
         component["name"] = f'{metadata["name"]}.{component["name"]}'
     return metadata
+
 
 def _encode_image(image_path):
     if not os.path.exists(image_path):
@@ -171,6 +167,7 @@ def _encode_image(image_path):
             return f"data:image/svg+xml;base64,{base64.b64encode(f.read()).decode('utf-8')}"
         else:
             return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+
 
 def create_metadata():
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -209,6 +206,370 @@ def create_metadata():
 
     metadata["components"] = components
     return metadata
+
+
+def discover_functions(functions_dir: Path = Path("functions/")) -> list[dict]:
+    """Discover all function definitions in the functions directory.
+
+    Returns:
+        List of function metadata dictionaries
+    """
+    if not functions_dir.exists():
+        return []
+
+    functions = []
+    for function_folder in functions_dir.iterdir():
+        if function_folder.is_dir():
+            metadata_file = function_folder / "metadata.json"
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, "r") as f:
+                        metadata = json.load(f)
+                    metadata["_path"] = function_folder
+                    functions.append(metadata)
+                except Exception as e:
+                    print(
+                        f"Warning: Failed to load metadata for {function_folder.name}: {e}"
+                    )
+
+    return functions
+
+
+def _extract_pep723_metadata(python_code: str) -> dict:
+    """Extract dependencies and Python version from PEP 723 metadata
+
+    Args:
+        python_code: Python source code that MUST contain PEP 723 metadata
+
+    Returns:
+        Dictionary with 'dependencies', 'python_version', and 'clean_python_body' keys
+
+    Raises:
+        ValueError: If PEP 723 metadata block is missing
+    """
+
+    # Look for PEP 723 script metadata block
+    pattern = r"# /// script\n(.*?)\n# ///"
+    match = re.search(pattern, python_code, re.DOTALL)
+
+    if not match:
+        raise ValueError(
+            "Python function is missing required PEP 723 metadata block. "
+            "Add a comment block at the top of your definition.py file like:\n"
+            "# /// script\n"
+            '# requires-python = "==3.11"\n'
+            "# dependencies = [\n"
+            '#   "numpy",\n'
+            "# ]\n"
+            "# ///"
+        )
+
+    try:
+        # Parse the TOML metadata
+        metadata_lines = match.group(1)
+        # Remove leading "# " from each line
+        toml_content = "\n".join(
+            line[2:] if line.startswith("# ") else line
+            for line in metadata_lines.split("\n")
+            if line.strip()
+        )
+
+        metadata = toml.loads(toml_content)
+        dependencies = metadata.get("dependencies", [])
+
+        # Extract Python version
+        requires_python = metadata.get("requires-python", "==3.11")
+        python_version = _extract_python_version(requires_python)
+
+        # Remove PEP 723 metadata block from function body
+        pep723_pattern = r"# /// script\n.*?\n# ///\n*"
+        clean_python_body = re.sub(
+            pep723_pattern, "", python_code, flags=re.DOTALL
+        ).strip()
+
+        return {
+            "dependencies": dependencies,
+            "python_version": python_version,
+            "clean_python_body": clean_python_body,
+        }
+
+    except Exception as e:
+        raise ValueError(f"Failed to parse PEP 723 metadata: {e}")
+
+
+def _extract_python_version(requires_python: str) -> str:
+    """Extract exact Python version from requires-python specification.
+
+    Args:
+        requires_python: Version specification - MUST use exact version with ==
+
+    Returns:
+        Python version string like "3.11"
+
+    Raises:
+        ValueError: If the version specification is not exact (doesn't use ==)
+    """
+    import re
+
+    # Only accept explicit version with ==
+    exact_match = re.search(r"==(\d+\.\d+(?:\.\d+)?)", requires_python)
+    if exact_match:
+        version = exact_match.group(1)
+        # Return major.minor format
+        parts = version.split(".")
+        return f"{parts[0]}.{parts[1]}"
+
+    # Reject any other format
+    raise ValueError(
+        f"Python version must be specified with exact version (==). "
+        f"Got: '{requires_python}'. "
+        f"Use format like 'requires-python = \"==3.11\"' or 'requires-python = \"==3.11.5\"'"
+    )
+
+
+def generate_function_sql_bigquery(function_metadata: dict) -> str:
+    """Generate BigQuery SQL code for a single function.
+
+    Args:
+        function_metadata: Function metadata dictionary
+
+    Returns:
+        SQL code to create the BigQuery function
+    """
+    func_name = function_metadata["name"].upper()
+    func_path = function_metadata["_path"]
+
+    # Build parameter list with BigQuery types
+    params = []
+    for param in function_metadata["parameters"]:
+        param_name = param["name"]
+        param_type = param["type"]
+        # BigQuery uses standard types as-is
+        params.append(f"{param_name} {param_type}")
+
+    params_str = ",\n    ".join(params)
+
+    # Get return type (BigQuery uses as-is)
+    return_type = function_metadata["returns"]["type"]
+
+    # Infer function type from definition file extension
+    sql_definition_file = func_path / "src" / "definition.sql"
+    python_definition_file = func_path / "src" / "definition.py"
+
+    if sql_definition_file.exists():
+        # SQL function for BigQuery
+        with open(sql_definition_file, "r") as f:
+            sql_body = f.read().strip()
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            RETURNS {return_type}
+            AS (
+                {sql_body}
+            );"""
+
+    elif python_definition_file.exists():
+        # Python function for BigQuery
+        with open(python_definition_file, "r") as f:
+            python_code = f.read().strip()
+
+        # Extract packages, Python version, and clean body from PEP 723 script metadata
+        try:
+            pep723_metadata = _extract_pep723_metadata(python_code)
+            packages = pep723_metadata["dependencies"]
+            python_version = pep723_metadata["python_version"]
+            clean_python_code = pep723_metadata["clean_python_body"]
+        except ValueError as e:
+            print(f"Error in function {func_name}: {e}")
+            return ""
+
+        # BigQuery Python UDF format
+        packages_str = ",".join([f"'{pkg}'" for pkg in packages]) if packages else ""
+        options = []
+        options.append("entry_point='main'")
+        options.append(f"runtime_version='python-{python_version}'")
+        if packages:
+            options.append(f"packages=[{packages_str}]")
+        options_str = ",\n    ".join(options)
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE python
+            OPTIONS (
+                {options_str}
+            )
+            AS r\"\"\"\n{clean_python_code}\n\"\"\";
+            """
+
+    else:
+        print(
+            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+        )
+        return ""
+
+
+def generate_function_sql_snowflake(function_metadata: dict) -> str:
+    """Generate Snowflake SQL code for a single function.
+
+    Args:
+        function_metadata: Function metadata dictionary
+
+    Returns:
+        SQL code to create the Snowflake function
+    """
+    func_name = function_metadata["name"].upper()
+    func_path = function_metadata["_path"]
+
+    # Known Snowflake data types
+    known_snowflake_types = {
+        "NUMBER",
+        "DECIMAL",
+        "NUMERIC",
+        "INT",
+        "INTEGER",
+        "BIGINT",
+        "SMALLINT",
+        "TINYINT",
+        "FLOAT",
+        "FLOAT4",
+        "FLOAT8",
+        "DOUBLE",
+        "DOUBLE PRECISION",
+        "REAL",
+        "VARCHAR",
+        "CHAR",
+        "CHARACTER",
+        "STRING",
+        "TEXT",
+        "BINARY",
+        "VARBINARY",
+        "BOOLEAN",
+        "DATE",
+        "DATETIME",
+        "TIME",
+        "TIMESTAMP",
+        "TIMESTAMP_LTZ",
+        "TIMESTAMP_NTZ",
+        "TIMESTAMP_TZ",
+        "VARIANT",
+        "OBJECT",
+        "ARRAY",
+        "GEOGRAPHY",
+        "GEOMETRY",
+    }
+
+    # Build parameter list using original types from metadata
+    params = []
+    for param in function_metadata["parameters"]:
+        param_name = param["name"]
+        param_type = param["type"]
+
+        # Validate type against known Snowflake types
+        if param_type.upper() not in known_snowflake_types:
+            print(
+                f"Warning: Parameter '{param_name}' uses type '{param_type}' which may not be a valid Snowflake type"
+            )
+
+        params.append(f"{param_name} {param_type}")
+
+    params_str = ",\n    ".join(params)
+
+    # Get return type using original type from metadata
+    return_type = function_metadata["returns"]["type"]
+
+    # Validate return type against known Snowflake types
+    if return_type.upper() not in known_snowflake_types:
+        print(f"Warning: Return type '{return_type}' may not be a valid Snowflake type")
+
+    # Infer function type from definition file extension
+    sql_definition_file = func_path / "src" / "definition.sql"
+    python_definition_file = func_path / "src" / "definition.py"
+
+    if sql_definition_file.exists():
+        # SQL function for Snowflake
+        with open(sql_definition_file, "r") as f:
+            sql_body = f.read().strip()
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            AS
+            $$
+                {sql_body}
+            $$;"""
+
+    elif python_definition_file.exists():
+        # Python function for Snowflake
+        with open(python_definition_file, "r") as f:
+            python_code = f.read().strip()
+
+        # Extract packages, Python version, and clean body from PEP 723 script metadata
+        try:
+            pep723_metadata = _extract_pep723_metadata(python_code)
+            packages = pep723_metadata["dependencies"]
+            python_version = pep723_metadata["python_version"]
+            clean_python_code = pep723_metadata["clean_python_body"]
+        except ValueError as e:
+            print(f"Error in function {func_name}: {e}")
+            return ""
+
+        # Snowflake Python UDF format
+        packages_str = ",".join([f"'{pkg}'" for pkg in packages]) if packages else ""
+        packages_clause = f"PACKAGES = ({packages_str})" if packages else ""
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE PYTHON
+            RUNTIME_VERSION = '{python_version}'
+            {packages_clause}
+            HANDLER = 'main'
+            AS
+            $$\n{clean_python_code}\n$$;
+            """
+
+    else:
+        print(
+            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+        )
+        return ""
+
+
+def get_functions_code(provider: str = "bigquery") -> str:
+    """Generate code to declare all UDFs for the specified provider.
+
+    Args:
+        provider: Target provider ('bigquery' or 'snowflake')
+
+    Returns:
+        SQL code to create all functions
+    """
+    functions = discover_functions()
+    if not functions:
+        return ""
+
+    function_codes = []
+    for function_metadata in functions:
+        if provider == "bigquery":
+            func_code = generate_function_sql_bigquery(function_metadata)
+        elif provider == "snowflake":
+            func_code = generate_function_sql_snowflake(function_metadata)
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+        if func_code:
+            function_codes.append(func_code)
+
+    if function_codes:
+        return "\n\n".join(function_codes)
+    else:
+        return ""
+
 
 def get_procedure_code_bq(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -264,28 +625,11 @@ def get_procedure_code_bq(component):
     )
     return procedure_code
 
-def get_functions_code(dir: Path = Path("functions/")):
-    """Generate code to declare additonal UDFs to the package.
-
-    The function will look for all SQL files in the argument directory and
-    generate a complete declaration to create all of them.
-    """
-    if not dir.exists():
-        return ""
-
-    udfs = list()
-
-    for filename in dir.glob("*.sql"):
-        with open(filename, "r") as f:
-            # Strip empty lines from the final code
-            contents = "\n".join(l.rstrip() for l in f.readlines() if l.strip())
-            udfs.append(contents)
-
-    code =  "\n\n".join(udfs)
-    return code
 
 def create_sql_code_bq(metadata):
-    functions_code = get_functions_code()
+    functions_code = ""
+    if metadata.get("functions"):
+        functions_code = get_functions_code("bigquery")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -340,6 +684,7 @@ def create_sql_code_bq(metadata):
     )
 
     return dedent(code)
+
 
 def get_procedure_code_sf(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -406,8 +751,11 @@ def get_procedure_code_sf(component):
     )
     return procedure_code
 
+
 def create_sql_code_sf(metadata):
-    functions_code = get_functions_code()
+    functions_code = ""
+    if metadata.get("functions"):
+        functions_code = get_functions_code("snowflake")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -418,7 +766,7 @@ def create_sql_code_sf(metadata):
         param_types = [f"{p['type']}" for p in c["inputs"]]
         procedures.append(f"{c['procedureName']}({','.join(param_types)})")
     metadata_string = json.dumps(metadata).replace("\\n", "\\\\n").replace("'", "\\'")
-    procedures_string =  ';'.join(procedures).replace("'", "\'")
+    procedures_string = ";".join(procedures).replace("'", "'")
     code = dedent(
         f"""DECLARE
             procedures STRING;
@@ -463,17 +811,19 @@ def create_sql_code_sf(metadata):
 
     return code
 
+
 def deploy_bq(metadata, destination):
     print("Deploying extension to BigQuery...")
     destination = f"`{destination}`" if destination else bq_workflows_temp
     sql_code = create_sql_code_bq(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
     sql_code = substitute_vars(sql_code)
-    if globals().get('verbose', False):
+    if verbose:
         print(sql_code)
     query_job = bq_client().query(sql_code)
     query_job.result()
     print("Extension correctly deployed to BigQuery.")
+
 
 def deploy_sf(metadata, destination):
     print("Deploying extension to SnowFlake...")
@@ -482,11 +832,12 @@ def deploy_sf(metadata, destination):
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
     sql_code = substitute_vars(sql_code)
 
-    if globals().get('verbose', False):
+    if verbose:
         print(sql_code)
     cur = sf_client().cursor()
     cur.execute(sql_code)
     print("Extension correctly deployed to SnowFlake.")
+
 
 def deploy(destination):
     metadata = create_metadata()
@@ -494,6 +845,7 @@ def deploy(destination):
         deploy_bq(metadata, destination)
     else:
         deploy_sf(metadata, destination)
+
 
 def substitute_vars(text: str) -> str:
     """Substitute all variables in a string with their values from the environment.
@@ -513,6 +865,7 @@ def substitute_vars(text: str) -> str:
 
     return text
 
+
 def substitute_keys(text: str, dotenv: dict[str, str]) -> str:
     """Substitute all variables in the .env file with their key.
 
@@ -527,30 +880,30 @@ def substitute_keys(text: str, dotenv: dict[str, str]) -> str:
 
     return text
 
-def infer_schema_field_bq(key: str, value: Any, from_array: bool=False) -> bigquery.SchemaField:
-    kwargs = dict()
 
-    if from_array:
-        kwargs["mode"] = "REPEATED"
+def infer_schema_field_bq(
+    key: str, value: Any, from_array: bool = False
+) -> bigquery.SchemaField:
+    mode = "REPEATED" if from_array else "NULLABLE"
 
     if isinstance(value, int):
-        return bigquery.SchemaField(key, "INT64", **kwargs)
+        return bigquery.SchemaField(key, "INT64", mode=mode)
     elif isinstance(value, float):
-        return bigquery.SchemaField(key, "FLOAT64", **kwargs)
+        return bigquery.SchemaField(key, "FLOAT64", mode=mode)
 
     elif isinstance(value, str):
         if key.endswith("date"):
-            return bigquery.SchemaField(key, "DATE", **kwargs)
+            return bigquery.SchemaField(key, "DATE", mode=mode)
         elif key.endswith("timestamp") or key == "t":
-            return bigquery.SchemaField(key, "TIMESTAMP", **kwargs)
+            return bigquery.SchemaField(key, "TIMESTAMP", mode=mode)
         elif key.endswith("datetime"):
-            return bigquery.SchemaField(key, "DATETIME", **kwargs)
+            return bigquery.SchemaField(key, "DATETIME", mode=mode)
         else:
             try:
                 wkt.loads(value)
-                return bigquery.SchemaField(key, "GEOGRAPHY", **kwargs)
+                return bigquery.SchemaField(key, "GEOGRAPHY", mode=mode)
             except Exception:
-                return bigquery.SchemaField(key, "STRING", **kwargs)
+                return bigquery.SchemaField(key, "STRING", mode=mode)
 
     elif isinstance(value, list):
         return infer_schema_field_bq(key, value[0], from_array=True)
@@ -561,17 +914,18 @@ def infer_schema_field_bq(key: str, value: Any, from_array: bool=False) -> bigqu
             for sub_key, sub_value in value.items()
         ]
 
-        return bigquery.SchemaField(key, "RECORD", fields=sub_schema, **kwargs)
+        return bigquery.SchemaField(key, "RECORD", fields=sub_schema, mode=mode)
 
     else:
         raise NotImplementedError(
             f"Could not infer a BigQuery SchemaField for {value} ({type(value)})"
         )
 
+
 def _upload_test_table_bq(filename, component):
     schema = []
     with open(filename) as f:
-        data = [json.loads(l) for l in f.readlines()]
+        data = [json.loads(line) for line in f.readlines()]
     if os.path.exists(filename.replace(".ndjson", ".schema")):
         with open(filename.replace(".ndjson", ".schema")) as f:
             jsonschema = json.load(f)
@@ -607,8 +961,9 @@ def _upload_test_table_bq(filename, component):
         )
     try:
         job.result()
-    except Exception as e:
+    except Exception:
         pass
+
 
 def infer_schema_field_sf(key: str, value: Any) -> str:
     if isinstance(value, int):
@@ -638,25 +993,23 @@ def infer_schema_field_sf(key: str, value: Any) -> str:
     elif value is None:
         return "VARCHAR"  # Default for null values
     else:
-        # Fallback for unknown types
-        return "VARCHAR"
+        raise NotImplementedError(
+            f"Could not infer a Snowflake SchemaField for {value} ({type(value)})"
+        )
+
 
 def _upload_test_table_sf(filename, component):
-    import tempfile
-    import os
-
     with open(filename) as f:
         data = []
-        for l in f.readlines():
-            if l.strip():
-                data.append(json.loads(substitute_vars(l)))
+        for line in f.readlines():
+            if line.strip():
+                data.append(json.loads(substitute_vars(line)))
     if os.path.exists(filename.replace(".ndjson", ".schema")):
         with open(filename.replace(".ndjson", ".schema")) as f:
             data_types = json.load(f)
     else:
         data_types = {
-            key: infer_schema_field_sf(key, value)
-            for key, value in data[0].items()
+            key: infer_schema_field_sf(key, value) for key, value in data[0].items()
         }
 
     table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
@@ -673,7 +1026,9 @@ def _upload_test_table_sf(filename, component):
 
     if has_variant:
         # Create a temporary file with the data in NDJSON format
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as temp_file:
             for row in data:
                 # Convert VARIANT fields to proper JSON strings
                 processed_row = {}
@@ -682,7 +1037,7 @@ def _upload_test_table_sf(filename, component):
                         processed_row[key] = json.dumps(value)
                     else:
                         processed_row[key] = value
-                temp_file.write(json.dumps(processed_row) + '\n')
+                temp_file.write(json.dumps(processed_row) + "\n")
             temp_file_path = temp_file.name
 
         try:
@@ -735,6 +1090,7 @@ def _upload_test_table_sf(filename, component):
             cursor.execute(insert_sql, params)
 
     cursor.close()
+
 
 def _get_test_results(metadata, component, progress_bar=None):
     if metadata["provider"] == "bigquery":
@@ -796,32 +1152,41 @@ def _get_test_results(metadata, component, progress_bar=None):
             env_vars = json.dumps(test_configuration.get("env_vars", None))
 
             dry_run_params = param_values.copy() + [True, env_vars]
-            dry_run_query = _build_query(workflows_temp, component["procedureName"], dry_run_params, tables)
+            dry_run_query = _build_query(
+                workflows_temp, component["procedureName"], dry_run_params, tables
+            )
 
             full_run_params = param_values.copy() + [False, env_vars]
-            full_run_query = _build_query(workflows_temp, component["procedureName"], full_run_params, tables)
+            full_run_query = _build_query(
+                workflows_temp, component["procedureName"], full_run_params, tables
+            )
 
             # TODO: improve argument passing to _run_query()
-            component_results[test_id]["dry"] = _run_query(dry_run_query, component, metadata["provider"], tables)
-            component_results[test_id]["full"] = _run_query(full_run_query, component, metadata["provider"], tables)
+            component_results[test_id]["dry"] = _run_query(
+                dry_run_query, component, metadata["provider"], tables
+            )
+            component_results[test_id]["full"] = _run_query(
+                full_run_query, component, metadata["provider"], tables
+            )
 
             # Update progress bar after each test (dry + full run = 1 item)
             if progress_bar:
                 progress_bar.update(1)
-                progress_bar.set_postfix({"component": component["name"], "test": test_id})
+                progress_bar.set_postfix(
+                    {"component": component["name"], "test": test_id}
+                )
 
         results[component["name"]] = component_results
 
     return results
 
+
 def _build_query(workflows_temp, component_name, param_values, outputs):
     statements = []
 
-    # Add DROP TABLE statements
     for output_table in outputs.values():
-        statements.append(f'DROP TABLE IF EXISTS {output_table}')
+        statements.append(f"DROP TABLE IF EXISTS {output_table}")
 
-    # Add CALL statement
     call_statement = f"""CALL {workflows_temp}.{component_name}(
         {','.join([str(p) if p is not None else 'null' for p in param_values])}
     )"""
@@ -829,18 +1194,22 @@ def _build_query(workflows_temp, component_name, param_values, outputs):
 
     return statements
 
-def _run_query(statements: list, component: dict, provider: str, tables: dict) -> dict[str, pd.DataFrame]:
+
+def _run_query(
+    statements: list, component: dict, provider: str, tables: dict
+) -> dict[str, pd.DataFrame]:
     results = dict()
 
-    if globals().get('verbose', False):
+    if verbose:
         for stmt in statements:
             print(stmt)
 
     if provider == "bigquery":
-        # Join statements with newlines for BigQuery
+        # BigQuery can handle a single statement with several queries
         combined_query = ";\n\n".join(statements)
         query_job = bq_client().query(combined_query)
-        result = query_job.result()
+        _ = query_job.result()
+
         for output in component["outputs"]:
             query = f"SELECT * FROM {tables[output['name']]}"
             query_job = bq_client().query(query)
@@ -854,7 +1223,7 @@ def _run_query(statements: list, component: dict, provider: str, tables: dict) -
             results[output["name"]] = df
     elif provider == "snowflake":
         cur = sf_client().cursor()
-        # Execute each statement separately for Snowflake
+        # Snowflake requires a single query per statement
         for statement in statements:
             cur.execute(statement)
 
@@ -863,24 +1232,26 @@ def _run_query(statements: list, component: dict, provider: str, tables: dict) -
             cur = sf_client().cursor()
             cur.execute(output_query)
 
-            # Use fetch_pandas_all() but process JSON strings
             df = cur.fetch_pandas_all()
 
             # Convert column names to lowercase for consistency with BigQuery
             df.columns = [col.lower() for col in df.columns]
 
-            # Process Snowflake's JSON string columns
             if not df.empty:
                 for column in df.columns:
                     # Check if this looks like a JSON string that should be parsed
                     sample_value = df.iloc[0][column]
                     if isinstance(sample_value, str) and (
-                        sample_value.strip().startswith('[') or
-                        sample_value.strip().startswith('{')
+                        sample_value.strip().startswith("[")
+                        or sample_value.strip().startswith("{")
                     ):
                         try:
                             # Parse JSON strings back to proper structures
-                            df[column] = df[column].apply(lambda x: json.loads(x) if isinstance(x, str) and x.strip() else x)
+                            df[column] = df[column].apply(
+                                lambda x: json.loads(x)
+                                if isinstance(x, str) and x.strip()
+                                else x
+                            )
                         except (json.JSONDecodeError, ValueError):
                             # If JSON parsing fails, leave as string
                             pass
@@ -891,84 +1262,47 @@ def _run_query(statements: list, component: dict, provider: str, tables: dict) -
 
     return results
 
+
 def test(component):
-    print("Testing extension...")
-    metadata = create_metadata()
-    current_folder = os.path.dirname(os.path.abspath(__file__))
-    components_folder = os.path.join(current_folder, "components")
-    deploy(None)
-    results = _get_test_results(metadata, component)
+    """Run the pytest-based tests."""
 
-    for component in metadata["components"]:
-        component_folder = os.path.join(components_folder, component["name"])
+    # Step 1: Prepare all test data and save to file
+    prepare_test_data(component)
 
-        # Load test configuration to get test_sorting parameter
-        # TODO: this new read could be avoided
-        test_configuration_file = os.path.join(component_folder, "test", "test.json")
-        with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+    # Save test data to temporary file
+    with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pkl") as f:
+        pickle.dump({"metadata": _metadata_cache, "results": _test_results_cache}, f)
+        temp_file_path = f.name
 
-        # Create a mapping of test_id to test configuration
-        test_config_map = {str(config["id"]): config for config in test_configurations}
+    # Set environment variable so pytest can find the data file
+    os.environ["PYTEST_TEST_DATA_FILE"] = temp_file_path
 
-        for test_id, outputs in results[component["name"]].items():
-            test_folder = os.path.join(component_folder, "test", "fixtures")
-            test_filename = os.path.join(test_folder, f"{test_id}.json")
+    try:
+        # Step 2: Start pytest session
+        print("Running pytest-based extension tests...")
+        retcode = pytest.main(
+            ["-vv", "--tb=short", __file__ + "::test_extension_components"]
+        )
 
-            # Get test configuration for this test_id
-            test_config = test_config_map.get(str(test_id), {})
+        if retcode == 0:
+            print("Extension correctly tested with pytest.")
+        else:
+            print(f"Pytest testing failed with exit code {retcode}")
+            exit(retcode)
+    finally:
+        # Clean up temporary file
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        if "PYTEST_TEST_DATA_FILE" in os.environ:
+            del os.environ["PYTEST_TEST_DATA_FILE"]
 
-            zipped_outputs = [
-                (output_name, dry_output, outputs["full"][output_name])
-                for output_name, dry_output in outputs["dry"].items()
-            ]
-
-            # Test that dry and full runs have the same schema
-            for output_name, dry_output, full_output in zipped_outputs:
-                if not check_schema(dry_output, full_output):
-                    raise AssertionError(
-                        f"Dry run and full run schemas do not match "
-                        f"in {component['title']} - {test_id} - {output_name}"
-                    )
-
-            if str(test_id).startswith("skip_"):
-                # Don't compare results, it will only throw an error
-                # if there is an issue when running on BigQuery
-                continue
-
-            # Test that the results match the expected ones
-            with open(test_filename, "r") as f:
-                expected = json.loads(substitute_vars(f.read()))
-
-                # Check if test_sorting is enabled (default True)
-                test_sorting = test_config.get("test_sorting", True)
-
-                for output_name, test_result_df in outputs["full"].items():
-                    output = dataframe_to_dict(test_result_df)
-                    expected_output = expected[output_name]
-
-                    # Normalize first
-                    output = normalize_json(output, decimal_places=5)
-                    expected_output = normalize_json(expected_output, decimal_places=5)
-
-                    # Apply sorting after normalization when test_sorting is False
-                    if not test_sorting:
-                        output = _sorted_json(output)
-                        expected_output = _sorted_json(expected_output)
-
-                    from pytest_unordered import unordered
-                    if output != unordered(expected_output):
-                        raise AssertionError(
-                            f"Test '{test_id}' failed for component {component['name']} and table {output_name}."
-                        )
-
-    print("Extension correctly tested.")
 
 # Pytest-based testing functions
 _test_results_cache = None
 _metadata_cache = None
 
-def prepare_test_data():
+
+def prepare_test_data(component=None):
     """Run all SQL and collect test data."""
     global _test_results_cache, _metadata_cache
 
@@ -980,8 +1314,10 @@ def prepare_test_data():
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
 
-    for component in _metadata_cache["components"]:
-        component_folder = os.path.join(components_folder, component["name"])
+    for comp in _metadata_cache["components"]:
+        if component and comp["name"] != component:
+            continue
+        component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
@@ -990,21 +1326,24 @@ def prepare_test_data():
     # Create progress bar only if not in verbose mode
     if not verbose:
         with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
-            _test_results_cache = _get_test_results(_metadata_cache, None, progress_bar=pbar)
+            _test_results_cache = _get_test_results(
+                _metadata_cache, component, progress_bar=pbar
+            )
     else:
-        _test_results_cache = _get_test_results(_metadata_cache, None)
+        _test_results_cache = _get_test_results(_metadata_cache, component)
+
 
 def load_test_cases():
     """Generate test cases from pre-collected data."""
     import pickle
 
     # Load test data from file if available
-    test_data_file = os.environ.get('PYTEST_TEST_DATA_FILE')
+    test_data_file = os.environ.get("PYTEST_TEST_DATA_FILE")
     if test_data_file and os.path.exists(test_data_file):
-        with open(test_data_file, 'rb') as f:
+        with open(test_data_file, "rb") as f:
             data = pickle.load(f)
-            metadata_cache = data['metadata']
-            test_results_cache = data['results']
+            metadata_cache = data["metadata"]
+            test_results_cache = data["results"]
     else:
         # Fallback: prepare data if file not available
         global _test_results_cache, _metadata_cache
@@ -1037,34 +1376,40 @@ def load_test_cases():
             test_sorting = test_config.get("test_sorting", True)
 
             # Schema test case
-            test_cases.append({
-                "test_type": "schema",
-                "component": component,
-                "test_id": test_id,
-                "outputs": outputs,
-                "test_sorting": test_sorting,
-                "test_name": f"schema_{component['name']}_{test_id}"
-            })
-
-            # Results test case (skip if test_id starts with "skip_")
-            if not str(test_id).startswith("skip_"):
-                test_cases.append({
-                    "test_type": "results",
+            test_cases.append(
+                {
+                    "test_type": "schema",
                     "component": component,
                     "test_id": test_id,
                     "outputs": outputs,
-                    "test_filename": test_filename,
                     "test_sorting": test_sorting,
-                    "test_name": f"results_{component['name']}_{test_id}"
-                })
+                    "test_name": f"schema_{component['name']}_{test_id}",
+                }
+            )
+
+            # Results test case (skip if test_id starts with "skip_")
+            if not str(test_id).startswith("skip_"):
+                test_cases.append(
+                    {
+                        "test_type": "results",
+                        "component": component,
+                        "test_id": test_id,
+                        "outputs": outputs,
+                        "test_filename": test_filename,
+                        "test_sorting": test_sorting,
+                        "test_name": f"results_{component['name']}_{test_id}",
+                    }
+                )
 
     return test_cases
+
 
 def pytest_generate_tests(metafunc):
     """Generate test cases dynamically for pytest."""
     if metafunc.function.__name__ == "test_extension_components":
         test_cases = load_test_cases()
         metafunc.parametrize("test_case", test_cases, ids=lambda tc: tc["test_name"])
+
 
 def test_extension_components(test_case):
     """Parametrized test function that runs all component tests."""
@@ -1074,9 +1419,9 @@ def test_extension_components(test_case):
             full_output = test_case["outputs"]["full"][output_name]
             dry_schema = set(dry_output.dtypes.astype(str).to_dict().keys())
             full_schema = set(full_output.dtypes.astype(str).to_dict().keys())
-            assert dry_schema == full_schema, (
-                f"Schema mismatch in {test_case['component']['title']} - {test_case['test_id']} - {output_name}"
-            )
+            assert (
+                dry_schema == full_schema
+            ), f"Schema mismatch in {test_case['component']['title']} - {test_case['test_id']} - {output_name}"
 
     elif test_case["test_type"] == "results":
         # Test results match expected
@@ -1098,43 +1443,9 @@ def test_extension_components(test_case):
 
             # Use unordered comparison for order-independent testing
             from pytest_unordered import unordered
+
             assert result_normalized == unordered(expected_normalized)
 
-def run_pytest_tests():
-    """Run the pytest-based tests."""
-    import tempfile
-    import pickle
-
-    # Step 1: Prepare all test data and save to file
-    prepare_test_data()
-
-    # Save test data to temporary file
-    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.pkl') as f:
-        pickle.dump({
-            'metadata': _metadata_cache,
-            'results': _test_results_cache
-        }, f)
-        temp_file_path = f.name
-
-    # Set environment variable so pytest can find the data file
-    os.environ['PYTEST_TEST_DATA_FILE'] = temp_file_path
-
-    try:
-        # Step 2: Start pytest session
-        print("Running pytest-based extension tests...")
-        retcode = pytest.main(["-vv", "--tb=short", __file__ + "::test_extension_components"])
-
-        if retcode == 0:
-            print("Extension correctly tested with pytest.")
-        else:
-            print(f"Pytest testing failed with exit code {retcode}")
-            exit(retcode)
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
-        if 'PYTEST_TEST_DATA_FILE' in os.environ:
-            del os.environ['PYTEST_TEST_DATA_FILE']
 
 def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     """Uniformly convert a pandas DataFrame to a neste structure.
@@ -1145,7 +1456,7 @@ def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     capturing or testing. This functions handles that conversion.
     """
     for column, dtype in df.dtypes.to_dict().items():
-        if dtype == 'object':
+        if dtype == "object":
             try:
                 value = df.iloc[0].loc[column]
             except IndexError:
@@ -1158,6 +1469,7 @@ def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
     output = df.to_dict(orient="records")
     return output
 
+
 def check_schema(dry_result, full_result) -> bool:
     """Compare two different DataFrames two have the same columns."""
     dry_schema = dry_result.dtypes.astype(str).to_dict()
@@ -1165,10 +1477,11 @@ def check_schema(dry_result, full_result) -> bool:
     if dry_schema.keys() == full_schema.keys():
         return True
     else:
-        if globals().get('verbose', False):
+        if verbose:
             print(f"{dry_schema.keys()=}")
             print(f"{full_schema.keys()=}")
         return False
+
 
 def normalize_json(original, decimal_places=3):
     """Ensure that the input for a test is in an uniform format.
@@ -1176,6 +1489,7 @@ def normalize_json(original, decimal_places=3):
     This function takes an input and generates a new version of it that does
     comply with an uniform format, including the precision of the floats.
     """
+
     # GOTCHA: dump and load to pass all values through the JSON parser, to
     # prevent any mismatch in types that cannot be inferred (i.e. Timestamp)
     # But first, convert any GeometryComparator objects to WKT strings
@@ -1197,15 +1511,25 @@ def normalize_json(original, decimal_places=3):
 
     return processed
 
+
 def normalize_element(value, decimal_places=5):
     """Format a single scalar value in the desired format."""
-    # Try to create geometry comparator first
-    geom_comparator = create_geometry_comparator(value)
-    if isinstance(geom_comparator, GeometryComparator):
-        return geom_comparator.to_wkt()
+    # Try to create geometry comparator for strings
+    if isinstance(value, str):
+        try:
+            return GeometryComparator.from_geography_string(value).to_wkt()
+        except ValueError:
+            pass  # Not a geometry string, continue
+    elif isinstance(value, dict) and "type" in value and "coordinates" in value:
+        try:
+            return GeometryComparator.from_geojson(value).to_wkt()
+        except Exception:
+            pass  # Not valid GeoJSON, continue
 
     if isinstance(value, dict):
-        return {key: normalize_element(val, decimal_places) for key, val in value.items()}
+        return {
+            key: normalize_element(val, decimal_places) for key, val in value.items()
+        }
     elif isinstance(value, list):
         return [normalize_element(x, decimal_places) for x in value]
     elif isinstance(value, float) and math.isnan(value):
@@ -1217,6 +1541,7 @@ def normalize_element(value, decimal_places=5):
     else:
         return value
 
+
 def _sorted_json(data):
     """Recursively sort JSON-like structures (dicts only) to enable consistent ordering."""
     if isinstance(data, dict):
@@ -1227,6 +1552,11 @@ def _sorted_json(data):
     else:
         return data
 
+
+def test_output(expected, result, decimal_places=3):
+    expected = normalize_json(_sorted_json(expected), decimal_places=decimal_places)
+    result = normalize_json(_sorted_json(result), decimal_places=decimal_places)
+    return expected == result
 
 
 def capture(component):
@@ -1241,7 +1571,6 @@ def capture(component):
         component_folder = os.path.join(components_folder, component["name"])
 
         # Load test configuration to get test_sorting parameter
-        # TODO: this new read could be avoided
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
@@ -1276,6 +1605,7 @@ def capture(component):
 
     print("Fixtures correctly captured.")
 
+
 def package():
     print("Packaging extension...")
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -1298,9 +1628,11 @@ def package():
 
     print(f"Extension correctly packaged to '{package_filename}' file.")
 
+
 def update():
     download_file("carto_extension.py", os.getcwd())
     download_file("requirements.txt", os.getcwd())
+
 
 def download_file(
     path_to_file: str,
@@ -1316,6 +1648,7 @@ def download_file(
     os.replace(tmp_path, complete_path)
 
     print(f"Downloaded {complete_url} to {complete_path}")
+
 
 def _param_type_to_bq_type(param_type):
     if param_type in [
@@ -1343,6 +1676,7 @@ def _param_type_to_bq_type(param_type):
     else:
         raise ValueError(f"Parameter type '{param_type}' not supported")
 
+
 def _param_type_to_sf_type(param_type):
     if param_type in [
         "Table",
@@ -1368,6 +1702,7 @@ def _param_type_to_sf_type(param_type):
         return ["BOOLEAN"]
     else:
         raise ValueError(f"Parameter type '{param_type}' not supported")
+
 
 def check():
     print("Checking extension...")
@@ -1402,12 +1737,13 @@ def check():
 
     print("Extension correctly checked. No errors found.")
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "action",
     nargs=1,
     type=str,
-    choices=["package", "deploy", "test", "pytest", "capture", "check", "update"],
+    choices=["package", "deploy", "test", "capture", "check", "update"],
 )
 parser.add_argument("-c", "--component", help="Choose one component", type=str)
 parser.add_argument(
@@ -1435,8 +1771,6 @@ if __name__ == "__main__":
         deploy(args.destination)
     elif action == "test":
         test(args.component)
-    elif action == "pytest":
-        run_pytest_tests()
     elif action == "capture":
         capture(args.component)
     elif action == "check":

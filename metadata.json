@@ -22,6 +22,22 @@
         }
     },
     "details": [],
+    "functions": [
+        "distance_from_trajectory",
+        "get_values_at_timestamp",
+        "trajectory_splitter_anglechange",
+        "trajectory_intersection",
+        "trajectory_metrics",
+        "trajectory_splitter_observation",
+        "trajectory_cleaner_outlier",
+        "trajectory_simplifier",
+        "trajectory_splitter_speed",
+        "trajectory_stop_points",
+        "trajectory_stop_segments",
+        "trajectory_splitter_stop",
+        "trajectory_splitter_temporal",
+        "trajectory_splitter_valuechange"
+    ],
     "components": [
         "frompoints",
         "topoints",

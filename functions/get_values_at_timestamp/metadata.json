@@ -1,0 +1,25 @@
+{
+  "name": "get_values_at_timestamp",
+  "description": "Function get_values_at_timestamp",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "timestamp_str",
+      "type": "STRING",
+      "description": "Parameter timestamp_str"
+    }
+  ],
+  "returns": {
+    "type": "STRUCT<t TIMESTAMP, geom STRING>",
+    "description": "Returns STRUCT<t TIMESTAMP, geom STRING>"
+  }
+}

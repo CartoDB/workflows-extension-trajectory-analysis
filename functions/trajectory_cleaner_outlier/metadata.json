@@ -1,0 +1,35 @@
+{
+  "name": "trajectory_cleaner_outlier",
+  "description": "Function trajectory_cleaner_outlier",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "speed_threshold",
+      "type": "FLOAT64",
+      "description": "Parameter speed_threshold"
+    },
+    {
+      "name": "input_unit_distance",
+      "type": "STRING",
+      "description": "Parameter input_unit_distance"
+    },
+    {
+      "name": "input_unit_time",
+      "type": "STRING",
+      "description": "Parameter input_unit_time"
+    }
+  ],
+  "returns": {
+    "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING, logs STRING>>",
+    "description": "Returns ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING, logs STRING>>"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "trajectory_metrics",
+  "description": "Function trajectory_metrics",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "input_distance_bool",
+      "type": "BOOLEAN",
+      "description": "Parameter input_distance_bool"
+    },
+    {
+      "name": "input_duration_bool",
+      "type": "BOOLEAN",
+      "description": "Parameter input_duration_bool"
+    },
+    {
+      "name": "input_direction_bool",
+      "type": "BOOLEAN",
+      "description": "Parameter input_direction_bool"
+    },
+    {
+      "name": "input_speed_bool",
+      "type": "BOOLEAN",
+      "description": "Parameter input_speed_bool"
+    },
+    {
+      "name": "input_acceleration_bool",
+      "type": "BOOLEAN",
+      "description": "Parameter input_acceleration_bool"
+    },
+    {
+      "name": "input_distance_column",
+      "type": "STRING",
+      "description": "Parameter input_distance_column"
+    },
+    {
+      "name": "input_duration_column",
+      "type": "STRING",
+      "description": "Parameter input_duration_column"
+    },
+    {
+      "name": "input_direction_column",
+      "type": "STRING",
+      "description": "Parameter input_direction_column"
+    },
+    {
+      "name": "input_speed_column",
+      "type": "STRING",
+      "description": "Parameter input_speed_column"
+    },
+    {
+      "name": "input_acceleration_column",
+      "type": "STRING",
+      "description": "Parameter input_acceleration_column"
+    },
+    {
+      "name": "input_distance_unit_distance",
+      "type": "STRING",
+      "description": "Parameter input_distance_unit_distance"
+    },
+    {
+      "name": "input_speed_unit_distance",
+      "type": "STRING",
+      "description": "Parameter input_speed_unit_distance"
+    },
+    {
+      "name": "input_acceleration_unit_distance",
+      "type": "STRING",
+      "description": "Parameter input_acceleration_unit_distance"
+    },
+    {
+      "name": "input_duration_unit_time",
+      "type": "STRING",
+      "description": "Parameter input_duration_unit_time"
+    },
+    {
+      "name": "input_speed_unit_time",
+      "type": "STRING",
+      "description": "Parameter input_speed_unit_time"
+    },
+    {
+      "name": "input_acceleration_unit_time",
+      "type": "STRING",
+      "description": "Parameter input_acceleration_unit_time"
+    }
+  ],
+  "returns": {
+    "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+    "description": "Returns ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>"
+  }
+}
