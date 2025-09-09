@@ -1,5 +1,8 @@
 name: Test Extension
 
+env:
+  GITHUB_ACTIONS: true
+
 on:
   push:
     branches: [ master ]

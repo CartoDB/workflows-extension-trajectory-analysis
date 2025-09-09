@@ -36,10 +36,11 @@ WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
 # Initialize verbose flag
 verbose = False
 
+
 # CI environment detection
 def is_ci_environment():
     """Check if running in a CI environment."""
-    ci_vars = ['CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL', 'TRAVIS', 'CIRCLECI']
+    ci_vars = ["CI", "GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_URL", "TRAVIS", "CIRCLECI"]
     return any(os.getenv(var) for var in ci_vars)
 
 
@@ -1289,11 +1290,15 @@ def test(component):
     try:
         # Step 2: Start pytest session
         print("Running pytest-based extension tests...")
-        
+
         # Configure pytest arguments based on environment
         if is_ci_environment():
             # In CI: use -vv by default for detailed output
-            pytest_args = ["-vv", "--tb=short", __file__ + "::test_extension_components"]
+            pytest_args = [
+                "-vv",
+                "--tb=short",
+                __file__ + "::test_extension_components",
+            ]
             print("CI environment detected: using verbose pytest output")
         else:
             # Locally: capture user flags from command line and pass them to pytest
@@ -1301,7 +1306,11 @@ def test(component):
             pytest_args.append(__file__ + "::test_extension_components")
             if pytest_args == [__file__ + "::test_extension_components"]:
                 # No user flags provided, use default
-                pytest_args = ["-v", "--tb=short", __file__ + "::test_extension_components"]
+                pytest_args = [
+                    "-v",
+                    "--tb=short",
+                    __file__ + "::test_extension_components",
+                ]
 
         retcode = pytest.main(pytest_args)
 
@@ -1320,40 +1329,32 @@ def test(component):
 
 def _build_pytest_args_from_user_flags():
     """Build pytest arguments from user command line flags.
-    
+
     Pass all flags that are not used by the script itself to pytest.
     """
-    # Script's own arguments that should NOT be passed to pytest
-    script_args = {
-        'test', 'capture', 'deploy', 'package', 'check', 'update',  # actions
-        '-c', '--component',  # component flag
-        '-d', '--destination',  # destination flag  
-        '-v', '--verbose'  # verbose flag (note: this is different from pytest -v)
-    }
-    
     pytest_args = []
     skip_next = False
-    
+
     for i, arg in enumerate(argv[1:], 1):  # Skip script name
         if skip_next:
             # This argument is a value for a previous flag, skip it
             skip_next = False
             continue
-            
+
         # Skip the action argument (first positional argument after script name)
-        if i == 1 and arg in ['test', 'capture', 'deploy', 'package', 'check', 'update']:
+        if i == 1 and arg in ["test"]:
             continue
-            
+
         # Skip script-specific flags and their values
-        if arg in ['-c', '--component', '-d', '--destination']:
+        if arg in ["-c", "--component"]:
             skip_next = True  # Skip the next argument (the value)
             continue
-        elif arg in ['-v', '--verbose']:
+        elif arg in ["--verbose"]:
             continue  # Skip verbose flag
-            
+
         # Pass everything else to pytest
         pytest_args.append(arg)
-    
+
     return pytest_args
 
 
@@ -1385,8 +1386,12 @@ def prepare_test_data(component=None):
 
     # Use progress bar locally, detailed logging in CI
     if is_ci_environment():
-        print(f"CI environment detected: Running {total_tests} SQL tests with detailed logging")
-        _test_results_cache = _get_test_results(_metadata_cache, component, use_ci_logging=True)
+        print(
+            f"CI environment detected: Running {total_tests} SQL tests with detailed logging"
+        )
+        _test_results_cache = _get_test_results(
+            _metadata_cache, component, use_ci_logging=True
+        )
     elif not verbose:
         with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
             _test_results_cache = _get_test_results(
