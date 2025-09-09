@@ -5,7 +5,7 @@
 #   "pandas",
 #   "geopandas==1.1.0",
 #   "movingpandas==0.22.3",
-#   "pyproj",
+#   "pyproj==3.5.0",
 # ]
 # ///
 

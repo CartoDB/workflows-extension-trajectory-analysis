@@ -31,5 +31,9 @@
   "returns": {
     "type": "FLOAT64",
     "description": "Returns FLOAT64"
+  },
+  "extra_options": {
+    "container_memory": "4Gi",
+    "container_cpu": 1
   }
 }

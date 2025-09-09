@@ -2,6 +2,7 @@ name: Test Extension
 
 env:
   GITHUB_ACTIONS: true
+  PYTHONUNBUFFERED: 1
 
 on:
   push:
@@ -32,8 +33,8 @@ jobs:
       env:
         SF_USER: ${{ secrets.SF_USER }}
 
-  test-bigquery:
-    name: Test BigQuery Extension
+  deploy-bigquery:
+    name: Deploy BigQuery Extension
     runs-on: ubuntu-latest
     needs: check-providers
     if: needs.check-providers.outputs.bigquery-available == 'true'
@@ -57,8 +58,8 @@ jobs:
         project_id: ${{ vars.BQ_TEST_PROJECT }}
         create_credentials_file: true
     
-    - name: Run BigQuery tests
-      run: uv run carto_extension.py test
+    - name: Deploy BigQuery extension
+      run: uv run carto_extension.py deploy -d ${{ vars.BQ_TEST_PROJECT }}.${{ vars.BQ_TEST_DATASET }}
       env:
         # CI detection
         CI: true
@@ -70,8 +71,45 @@ jobs:
         # Python path
         PYTHONPATH: ${{ github.workspace }}
 
-  test-snowflake:
-    name: Test Snowflake Extension
+  test-bigquery:
+    name: Test BigQuery Extension
+    runs-on: ubuntu-latest
+    needs: deploy-bigquery
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Install Python and dependencies
+      run: |
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
+        project_id: ${{ vars.BQ_TEST_PROJECT }}
+        create_credentials_file: true
+    
+    - name: Run BigQuery tests
+      run: uv run carto_extension.py test --no-deploy
+      env:
+        # CI detection
+        CI: true
+        
+        # BigQuery connection settings
+        BQ_TEST_PROJECT: ${{ vars.BQ_TEST_PROJECT }}
+        BQ_TEST_DATASET: ${{ vars.BQ_TEST_DATASET }}
+        
+        # Python path
+        PYTHONPATH: ${{ github.workspace }}
+
+  deploy-snowflake:
+    name: Deploy Snowflake Extension
     runs-on: ubuntu-latest
     needs: check-providers
     if: needs.check-providers.outputs.snowflake-available == 'true'
@@ -88,8 +126,41 @@ jobs:
         uv venv --python 3.11.9
         uv pip install -r requirements.txt
     
+    - name: Deploy Snowflake extension
+      run: uv run carto_extension.py deploy -d ${{ vars.SF_TEST_DATABASE }}.${{ vars.SF_TEST_SCHEMA }}
+      env:
+        # CI detection
+        CI: true
+        
+        # Snowflake connection settings
+        SF_USER: ${{ secrets.SF_USER }}
+        SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
+        SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
+        SF_TEST_DATABASE: ${{ vars.SF_TEST_DATABASE }}
+        SF_TEST_SCHEMA: ${{ vars.SF_TEST_SCHEMA }}
+        
+        # Python path
+        PYTHONPATH: ${{ github.workspace }}
+
+  test-snowflake:
+    name: Test Snowflake Extension
+    runs-on: ubuntu-latest
+    needs: deploy-snowflake
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Install Python and dependencies
+      run: |
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
+    
     - name: Run Snowflake tests
-      run: uv run carto_extension.py test
+      run: uv run carto_extension.py test --no-deploy
       env:
         # CI detection
         CI: true
