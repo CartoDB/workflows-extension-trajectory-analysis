@@ -65,34 +65,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11.9'
-    
     - name: Set up Python environment with uv
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
+        enable-cache: true
+        cache-dependency-glob: "requirements.txt"
     
-    - name: Create virtual environment and install dependencies
+    - name: Install Python and dependencies
       run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        echo "Virtual environment created at:"
-        pwd
-        ls -la .venv/
-        echo "Installed packages:"
-        pip list
-    
-    - name: Upload virtual environment
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-venv
-        path: .venv/
-        if-no-files-found: error
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
 
   test-bigquery:
     name: Test BigQuery Extension
@@ -106,12 +89,13 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
+        enable-cache: true
+        cache-dependency-glob: "requirements.txt"
     
-    - name: Download virtual environment
-      uses: actions/download-artifact@v4
-      with:
-        name: python-venv
-        path: .venv
+    - name: Install Python and dependencies from cache
+      run: |
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
     
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -121,9 +105,7 @@ jobs:
         create_credentials_file: true
     
     - name: Run BigQuery tests
-      run: |
-        source .venv/bin/activate
-        python carto_extension.py test
+      run: uv run carto_extension.py test
       env:
         # CI detection
         CI: true
@@ -147,17 +129,16 @@ jobs:
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
+        enable-cache: true
+        cache-dependency-glob: "requirements.txt"
     
-    - name: Download virtual environment
-      uses: actions/download-artifact@v4
-      with:
-        name: python-venv
-        path: .venv
+    - name: Install Python and dependencies from cache
+      run: |
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
     
     - name: Run Snowflake tests
-      run: |
-        source .venv/bin/activate
-        python carto_extension.py test
+      run: uv run carto_extension.py test
       env:
         # CI detection
         CI: true
