@@ -31,5 +31,9 @@
   "returns": {
     "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING, logs STRING>>",
     "description": "Returns ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING, logs STRING>>"
+  },
+  "extra_options": {
+    "container_memory": "4Gi",
+    "container_cpu": 1
   }
 }

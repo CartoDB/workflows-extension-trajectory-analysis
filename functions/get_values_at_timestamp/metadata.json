@@ -21,5 +21,9 @@
   "returns": {
     "type": "STRUCT<t TIMESTAMP, geom STRING>",
     "description": "Returns STRUCT<t TIMESTAMP, geom STRING>"
+  },
+  "extra_options": {
+    "container_memory": "4Gi",
+    "container_cpu": 1
   }
 }

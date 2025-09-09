@@ -31,5 +31,9 @@
   "returns": {
     "type": "ARRAY<STRUCT<stop_id STRING, geometry STRING, start_time TIMESTAMP, end_time TIMESTAMP, duration_s FLOAT64>>",
     "description": "Returns ARRAY<STRUCT<stop_id STRING, geometry STRING, start_time TIMESTAMP, end_time TIMESTAMP, duration_s FLOAT64>>"
+  },
+  "extra_options": {
+    "container_memory": "4Gi",
+    "container_cpu": 1
   }
 }
