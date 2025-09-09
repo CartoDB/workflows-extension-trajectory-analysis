@@ -26,9 +26,18 @@ jobs:
         uv venv --python 3.11.9
         uv pip install -r requirements.txt
     
+    # Check if BigQuery secrets are available
+    - name: Check BigQuery secrets
+      id: bq_secrets
+      uses: svrooij/secret-gate-action@v1
+      with:
+        inputsToCheck: 'BQ_CREDENTIALS_JSON_CI'
+      env:
+        BQ_CREDENTIALS_JSON_CI: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
+    
     # BigQuery authentication (conditional - only if secrets exist)
     - name: Authenticate to Google Cloud
-      if: secrets.BQ_CREDENTIALS_JSON_CI != ''
+      if: steps.bq_secrets.outputs.inputsChecked == 'true'
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
