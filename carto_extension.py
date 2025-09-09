@@ -397,6 +397,20 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
         options.append(f"runtime_version='python-{python_version}'")
         if packages:
             options.append(f"packages=[{packages_str}]")
+        
+        # Add extra options from metadata if present
+        extra_options = function_metadata.get("extra_options", {})
+        for key, value in extra_options.items():
+            if isinstance(value, str):
+                options.append(f"{key}='{value}'")
+            elif isinstance(value, list):
+                # Handle list values like packages
+                list_str = ",".join([f"'{item}'" for item in value])
+                options.append(f"{key}=[{list_str}]")
+            else:
+                # Handle other types (numbers, booleans)
+                options.append(f"{key}={value}")
+        
         options_str = ",\n    ".join(options)
 
         return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
@@ -526,6 +540,23 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
         # Snowflake Python UDF format
         packages_str = ",".join([f"'{pkg}'" for pkg in packages]) if packages else ""
         packages_clause = f"PACKAGES = ({packages_str})" if packages else ""
+        
+        # Add extra options from metadata if present
+        extra_options_clauses = []
+        extra_options = function_metadata.get("extra_options", {})
+        for key, value in extra_options.items():
+            if isinstance(value, str):
+                extra_options_clauses.append(f"{key.upper()} = '{value}'")
+            elif isinstance(value, list):
+                # Handle list values
+                list_str = ",".join([f"'{item}'" for item in value])
+                extra_options_clauses.append(f"{key.upper()} = ({list_str})")
+            else:
+                # Handle other types (numbers, booleans)
+                extra_options_clauses.append(f"{key.upper()} = {value}")
+        
+        extra_options_str = "\n            ".join(extra_options_clauses)
+        extra_options_line = f"\n            {extra_options_str}" if extra_options_clauses else ""
 
         return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
                 {params_str}
@@ -533,7 +564,7 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             RETURNS {return_type}
             LANGUAGE PYTHON
             RUNTIME_VERSION = '{python_version}'
-            {packages_clause}
+            {packages_clause}{extra_options_line}
             HANDLER = 'main'
             AS
             $$\n{clean_python_code}\n$$;
@@ -1132,6 +1163,7 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
         for test_configuration in test_configurations:
             param_values = []
             test_id = test_configuration["id"]
+            skip_outputs = test_configuration.get("skip_output", [])
             component_results[test_id] = {}
             for inputparam in component["inputs"]:
                 param_value = test_configuration["inputs"][inputparam["name"]]
@@ -1152,8 +1184,9 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
                         param_values.append(f"'{param_value}'")
                     else:
                         param_values.append(param_value)
-            tablename = f"{workflows_temp}._table_{uuid4().hex}"
+
             for outputparam in component["outputs"]:
+                tablename = f"{workflows_temp}._table_{uuid4().hex}"
                 param_values.append(f"'{tablename}'")
                 tables[outputparam["name"]] = tablename
 
@@ -1176,6 +1209,7 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             component_results[test_id]["full"] = _run_query(
                 full_run_query, component, metadata["provider"], tables
             )
+            component_results[test_id]["skip_output"] = skip_outputs
 
             # Update progress bar or log progress after each test (dry + full run = 1 item)
             if progress_bar:
@@ -1437,6 +1471,16 @@ def load_test_cases():
         for test_id, outputs in test_results_cache[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             test_filename = os.path.join(test_folder, f"{test_id}.json")
+            skip_outputs = outputs['skip_output']
+
+            # Results test case (skip if test_id starts with "skip_", skip output if table in skip_outputs)
+            output_names = []
+            for mode in ['dry', 'full']:
+                if mode in outputs:
+                    outputs[mode] = {k: v for k, v in outputs[mode].items() if k not in skip_outputs}
+                    output_names.append(list(outputs[mode].keys()))
+            output_names = list(set(item for sublist in output_names for item in sublist))
+            outputs.pop('skip_output', None)
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1464,7 +1508,7 @@ def load_test_cases():
                         "outputs": outputs,
                         "test_filename": test_filename,
                         "test_sorting": test_sorting,
-                        "test_name": f"results_{component['name']}_{test_id}",
+                        "test_name": f"results_{component['name']}_{test_id}__{'_'.join(output_names)}",
                     }
                 )
 
@@ -1651,6 +1695,7 @@ def capture(component):
             test_folder = os.path.join(component_folder, "test", "fixtures")
             os.makedirs(test_folder, exist_ok=True)
             test_filename = os.path.join(test_folder, f"{test_id}.json")
+            skip_outputs = outputs.get('skip_output', [])
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1659,6 +1704,9 @@ def capture(component):
             with open(test_filename, "w") as f:
                 fixture_outputs = {}
                 for output_name, output_results in outputs["full"].items():
+                    if output_name in skip_outputs:
+                        # Don't capture results for skipped outputs
+                        continue
                     output_dict = output_results.to_dict(orient="records")
                     # Normalize first
                     output_dict = normalize_json(output_dict, decimal_places=3)
