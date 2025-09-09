@@ -26,7 +26,9 @@ jobs:
         uv venv --python 3.11.9
         uv pip install -r requirements.txt
     
+    # BigQuery authentication (conditional - only if secrets exist)
     - name: Authenticate to Google Cloud
+      if: secrets.BQ_CREDENTIALS_JSON_CI != ''
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
@@ -39,16 +41,16 @@ jobs:
         # CI detection
         CI: true
         
-        # BigQuery connection settings
+        # BigQuery connection settings (conditional)
         BQ_TEST_PROJECT: ${{ vars.BQ_TEST_PROJECT }}
         BQ_TEST_DATASET: ${{ vars.BQ_TEST_DATASET }}
         
-        # # Snowflake connection settings  
-        # SF_USER: ${{ secrets.SF_USER }}
-        # SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
-        # SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
-        # SF_TEST_DATABASE: ${{ secrets.SF_TEST_DATABASE }}
-        # SF_TEST_SCHEMA: ${{ secrets.SF_TEST_SCHEMA }}
+        # Snowflake connection settings (conditional)
+        SF_USER: ${{ secrets.SF_USER }}
+        SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
+        SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
+        SF_TEST_DATABASE: ${{ vars.SF_TEST_DATABASE }}
+        SF_TEST_SCHEMA: ${{ vars.SF_TEST_SCHEMA }}
         
         # Python path
         PYTHONPATH: ${{ github.workspace }}

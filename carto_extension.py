@@ -41,20 +41,7 @@ verbose = False
 def is_ci_environment():
     """Check if running in a CI environment."""
     ci_vars = ["CI", "GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_URL", "TRAVIS", "CIRCLECI"]
-    
-    # Debug: print environment variables for troubleshooting
-    detected_vars = []
-    for var in ci_vars:
-        value = os.getenv(var)
-        if value:
-            detected_vars.append(f"{var}={value}")
-    
-    if detected_vars:
-        print(f"DEBUG: CI environment variables found: {', '.join(detected_vars)}")
-        return True
-    else:
-        print("DEBUG: No CI environment variables detected")
-        return False
+    return any(os.getenv(var) for var in ci_vars)
 
 
 class GeometryComparator:
@@ -1197,7 +1184,7 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
                     {"component": component["name"], "test": test_id}
                 )
             elif use_ci_logging:
-                print(f"✓ Completed test: {component['name']} - {test_id}")
+                print(f"Completed test: {component['name']} - {test_id}")
 
         results[component["name"]] = component_results
 
