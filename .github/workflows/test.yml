@@ -65,29 +65,34 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.9'
+    
     - name: Set up Python environment with uv
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"
     
-    - name: Restore dependencies cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/uv
-        key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
-    
-    - name: Install dependencies
+    - name: Create virtual environment and install dependencies
       run: |
-        uv python install 3.11.9
-        uv venv --python 3.11.9
-        uv pip install -r requirements.txt
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        echo "Virtual environment created at:"
+        pwd
+        ls -la .venv/
+        echo "Installed packages:"
+        pip list
     
     - name: Upload virtual environment
       uses: actions/upload-artifact@v4
       with:
         name: python-venv
-        path: .venv
+        path: .venv/
+        if-no-files-found: error
 
   test-bigquery:
     name: Test BigQuery Extension
@@ -116,7 +121,9 @@ jobs:
         create_credentials_file: true
     
     - name: Run BigQuery tests
-      run: uv run carto_extension.py test
+      run: |
+        source .venv/bin/activate
+        python carto_extension.py test
       env:
         # CI detection
         CI: true
@@ -148,7 +155,9 @@ jobs:
         path: .venv
     
     - name: Run Snowflake tests
-      run: uv run carto_extension.py test
+      run: |
+        source .venv/bin/activate
+        python carto_extension.py test
       env:
         # CI detection
         CI: true
