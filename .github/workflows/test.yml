@@ -75,7 +75,6 @@ jobs:
       with:
         path: |
           ~/.cache/uv
-          .venv
         key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
     
     - name: Install dependencies
@@ -84,11 +83,11 @@ jobs:
         uv venv --python 3.11.9
         uv pip install -r requirements.txt
     
-    - name: Cache Python environment
-      uses: actions/cache@v4
+    - name: Upload virtual environment
+      uses: actions/upload-artifact@v4
       with:
+        name: python-venv
         path: .venv
-        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
 
   test-bigquery:
     name: Test BigQuery Extension
@@ -103,11 +102,11 @@ jobs:
       with:
         version: "latest"
     
-    - name: Restore Python environment
-      uses: actions/cache@v4
+    - name: Download virtual environment
+      uses: actions/download-artifact@v4
       with:
+        name: python-venv
         path: .venv
-        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
     
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -142,11 +141,11 @@ jobs:
       with:
         version: "latest"
     
-    - name: Restore Python environment
-      uses: actions/cache@v4
+    - name: Download virtual environment
+      uses: actions/download-artifact@v4
       with:
+        name: python-venv
         path: .venv
-        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
     
     - name: Run Snowflake tests
       run: uv run carto_extension.py test
