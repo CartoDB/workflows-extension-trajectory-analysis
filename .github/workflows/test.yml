@@ -1,0 +1,48 @@
+name: Test Extension
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python and install dependencies
+      run: |
+        uv python install 3.11.9
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
+        project_id: ${{ vars.BQ_TEST_PROJECT }}
+        create_credentials_file: true
+    
+    - name: Run tests
+      run: uv run carto_extension.py test
+      env:
+        # BigQuery connection settings
+        BQ_TEST_PROJECT: ${{ vars.BQ_TEST_PROJECT }}
+        BQ_TEST_DATASET: ${{ vars.BQ_TEST_DATASET }}
+        
+        # # Snowflake connection settings  
+        # SF_USER: ${{ secrets.SF_USER }}
+        # SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
+        # SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
+        # SF_TEST_DATABASE: ${{ secrets.SF_TEST_DATABASE }}
+        # SF_TEST_SCHEMA: ${{ secrets.SF_TEST_SCHEMA }}
+        
+        # Python path
+        PYTHONPATH: ${{ github.workspace }}

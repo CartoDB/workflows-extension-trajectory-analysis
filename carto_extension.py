@@ -23,6 +23,7 @@ import snowflake.connector
 import toml
 from dotenv import dotenv_values, load_dotenv
 from google.cloud import bigquery
+from pytest_unordered import unordered
 from shapely import wkt
 from shapely.geometry import shape
 from shapely.wkt import dumps
@@ -72,7 +73,7 @@ class GeometryComparator:
     @classmethod
     def from_geography_string(cls, value: str) -> "GeometryComparator":
         """Create GeometryComparator from WKT or GeoJSON string.
-        
+
         Tries WKT first, then GeoJSON, raises error otherwise.
         """
         try:
@@ -309,8 +310,6 @@ def _extract_python_version(requires_python: str) -> str:
     Raises:
         ValueError: If the version specification is not exact (doesn't use ==)
     """
-    import re
-
     # Only accept explicit version with ==
     exact_match = re.search(r"==(\d+\.\d+(?:\.\d+)?)", requires_python)
     if exact_match:
@@ -1335,8 +1334,6 @@ def prepare_test_data(component=None):
 
 def load_test_cases():
     """Generate test cases from pre-collected data."""
-    import pickle
-
     # Load test data from file if available
     test_data_file = os.environ.get("PYTEST_TEST_DATA_FILE")
     if test_data_file and os.path.exists(test_data_file):
@@ -1442,12 +1439,10 @@ def test_extension_components(test_case):
                 result_normalized = _sorted_json(result_normalized)
 
             # Use unordered comparison for order-independent testing
-            from pytest_unordered import unordered
-
             assert result_normalized == unordered(expected_normalized)
 
 
-def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
+def dataframe_to_dict(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Uniformly convert a pandas DataFrame to a neste structure.
 
     This function ensures that, once calling `to_dict` on a Python DataFrames,
@@ -1466,7 +1461,11 @@ def dataframe_to_dict(df: pd.DataFrame) -> dict[str, Any]:
                 # Convert from numpy to primitive types
                 df[column] = df[column].apply(lambda arr: arr.tolist())
 
-    output = df.to_dict(orient="records")
+    output = [
+        {str(column): value for column, value in row.items()}
+        for row in df.to_dict(orient="records")
+    ]
+
     return output
 
 
