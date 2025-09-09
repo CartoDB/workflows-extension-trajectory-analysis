@@ -36,6 +36,9 @@ jobs:
     - name: Run tests
       run: uv run carto_extension.py test
       env:
+        # CI detection
+        CI: true
+        
         # BigQuery connection settings
         BQ_TEST_PROJECT: ${{ vars.BQ_TEST_PROJECT }}
         BQ_TEST_DATASET: ${{ vars.BQ_TEST_DATASET }}

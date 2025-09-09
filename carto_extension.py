@@ -41,7 +41,20 @@ verbose = False
 def is_ci_environment():
     """Check if running in a CI environment."""
     ci_vars = ["CI", "GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_URL", "TRAVIS", "CIRCLECI"]
-    return any(os.getenv(var) for var in ci_vars)
+    
+    # Debug: print environment variables for troubleshooting
+    detected_vars = []
+    for var in ci_vars:
+        value = os.getenv(var)
+        if value:
+            detected_vars.append(f"{var}={value}")
+    
+    if detected_vars:
+        print(f"DEBUG: CI environment variables found: {', '.join(detected_vars)}")
+        return True
+    else:
+        print("DEBUG: No CI environment variables detected")
+        return False
 
 
 class GeometryComparator:
