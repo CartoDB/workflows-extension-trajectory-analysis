@@ -5,6 +5,7 @@
 #   "pandas",
 #   "datetime",
 #   "shapely",
+#   "pyproj==3.5.0",
 # ]
 # ///
 
