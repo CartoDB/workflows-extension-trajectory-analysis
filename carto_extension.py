@@ -397,20 +397,6 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
         options.append(f"runtime_version='python-{python_version}'")
         if packages:
             options.append(f"packages=[{packages_str}]")
-        
-        # Add extra options from metadata if present
-        extra_options = function_metadata.get("extra_options", {})
-        for key, value in extra_options.items():
-            if isinstance(value, str):
-                options.append(f"{key}='{value}'")
-            elif isinstance(value, list):
-                # Handle list values like packages
-                list_str = ",".join([f"'{item}'" for item in value])
-                options.append(f"{key}=[{list_str}]")
-            else:
-                # Handle other types (numbers, booleans)
-                options.append(f"{key}={value}")
-        
         options_str = ",\n    ".join(options)
 
         return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
@@ -1287,11 +1273,11 @@ def _run_query(
     return results
 
 
-def test(component):
+def test(component, no_deploy=False):
     """Run the pytest-based tests."""
 
     # Step 1: Prepare all test data and save to file
-    prepare_test_data(component)
+    prepare_test_data(component, no_deploy=no_deploy)
 
     # Save test data to temporary file
     with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pkl") as f:
@@ -1377,12 +1363,13 @@ _test_results_cache = None
 _metadata_cache = None
 
 
-def prepare_test_data(component=None):
+def prepare_test_data(component=None, no_deploy=False):
     """Run all SQL and collect test data."""
     global _test_results_cache, _metadata_cache
 
     _metadata_cache = create_metadata()
-    deploy(None)
+    if not no_deploy:
+        deploy(None)
 
     # Calculate total number of tests to run for progress bar
     total_tests = 0
@@ -1836,6 +1823,11 @@ parser.add_argument(
     required="deploy" in argv,
 )
 parser.add_argument("-v", "--verbose", help="Verbose mode", action="store_true")
+parser.add_argument(
+    "--no-deploy",
+    help="Skip deployment before testing (for test action only)",
+    action="store_true"
+)
 
 # Only parse args and run if this file is executed directly
 if __name__ == "__main__":
@@ -1846,13 +1838,15 @@ if __name__ == "__main__":
         parser.error("Component can only be used with 'capture' and 'test' actions")
     if args.destination and action not in ["deploy"]:
         parser.error("Destination can only be used with 'deploy' action")
+    if args.no_deploy and action != "test":
+        parser.error("--no-deploy can only be used with 'test' action")
     if action == "package":
         check()
         package()
     elif action == "deploy":
         deploy(args.destination)
     elif action == "test":
-        test(args.component)
+        test(args.component, no_deploy=args.no_deploy)
     elif action == "capture":
         capture(args.component)
     elif action == "check":
