@@ -9,9 +9,9 @@ on:
   pull_request:
 
 jobs:
-  test:
+  setup:
+    name: Setup Environment
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
     
@@ -26,35 +26,135 @@ jobs:
         uv venv --python 3.11.9
         uv pip install -r requirements.txt
     
-    # Check if BigQuery secrets are available
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
+
+  check-providers:
+    name: Check Provider Configuration
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      bigquery-available: ${{ steps.bq_check.outputs.inputsChecked }}
+      snowflake-available: ${{ steps.sf_check.outputs.inputsChecked }}
+    steps:
     - name: Check BigQuery secrets
-      id: bq_secrets
+      id: bq_check
       uses: svrooij/secret-gate-action@v1
       with:
         inputsToCheck: 'BQ_CREDENTIALS_JSON_CI'
       env:
         BQ_CREDENTIALS_JSON_CI: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
     
-    # BigQuery authentication (conditional - only if secrets exist)
+    - name: Check Snowflake secrets
+      id: sf_check
+      uses: svrooij/secret-gate-action@v1
+      with:
+        inputsToCheck: 'SF_USER'
+      env:
+        SF_USER: ${{ secrets.SF_USER }}
+
+  python-setup:
+    name: Setup Python Environment
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Restore dependencies cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
+    
+    - name: Install dependencies
+      run: |
+        uv python install 3.11.9
+        uv venv --python 3.11.9
+        uv pip install -r requirements.txt
+    
+    - name: Cache Python environment
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
+
+  test-bigquery:
+    name: Test BigQuery Extension
+    runs-on: ubuntu-latest
+    needs: [python-setup, check-providers]
+    if: needs.check-providers.outputs.bigquery-available == 'true'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Restore Python environment
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
+    
     - name: Authenticate to Google Cloud
-      if: steps.bq_secrets.outputs.inputsChecked == 'true'
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.BQ_CREDENTIALS_JSON_CI }}
         project_id: ${{ vars.BQ_TEST_PROJECT }}
         create_credentials_file: true
     
-    - name: Run tests
+    - name: Run BigQuery tests
       run: uv run carto_extension.py test
       env:
         # CI detection
         CI: true
         
-        # BigQuery connection settings (conditional)
+        # BigQuery connection settings
         BQ_TEST_PROJECT: ${{ vars.BQ_TEST_PROJECT }}
         BQ_TEST_DATASET: ${{ vars.BQ_TEST_DATASET }}
         
-        # Snowflake connection settings (conditional)
+        # Python path
+        PYTHONPATH: ${{ github.workspace }}
+
+  test-snowflake:
+    name: Test Snowflake Extension
+    runs-on: ubuntu-latest
+    needs: [python-setup, check-providers]
+    if: needs.check-providers.outputs.snowflake-available == 'true'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python environment with uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Restore Python environment
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: ${{ runner.os }}-python-env-${{ hashFiles('requirements.txt') }}
+    
+    - name: Run Snowflake tests
+      run: uv run carto_extension.py test
+      env:
+        # CI detection
+        CI: true
+        
+        # Snowflake connection settings
         SF_USER: ${{ secrets.SF_USER }}
         SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
         SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
