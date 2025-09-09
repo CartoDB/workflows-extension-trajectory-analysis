@@ -1,0 +1,35 @@
+{
+  "name": "distance_from_trajectory",
+  "description": "Function distance_from_trajectory",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "position",
+      "type": "STRING",
+      "description": "Parameter position"
+    },
+    {
+      "name": "distance_from",
+      "type": "STRING",
+      "description": "Parameter distance_from"
+    },
+    {
+      "name": "units",
+      "type": "STRING",
+      "description": "Parameter units"
+    }
+  ],
+  "returns": {
+    "type": "FLOAT64",
+    "description": "Returns FLOAT64"
+  }
+}

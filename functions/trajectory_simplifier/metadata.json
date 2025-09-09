@@ -1,0 +1,30 @@
+{
+  "name": "trajectory_simplifier",
+  "description": "Function trajectory_simplifier",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "tolerance",
+      "type": "FLOAT64",
+      "description": "Parameter tolerance"
+    },
+    {
+      "name": "rounding_precision",
+      "type": "FLOAT64",
+      "description": "Parameter rounding_precision"
+    }
+  ],
+  "returns": {
+    "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+    "description": "Returns ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>"
+  }
+}

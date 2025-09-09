@@ -27,7 +27,7 @@ EXECUTE IMMEDIATE FORMAT(
                 ANY_VALUE(logs) AS logs
             FROM `%s`,
             UNNEST(
-                @@workflows_temp@@.TRAJECTORY_OUTLIER_CLEANER(
+                @@workflows_temp@@.TRAJECTORY_CLEANER_OUTLIER(
                     %s,
                     %s,
                     %f,

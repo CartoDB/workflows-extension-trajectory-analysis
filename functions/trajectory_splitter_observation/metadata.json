@@ -1,0 +1,35 @@
+{
+  "name": "trajectory_splitter_observation",
+  "description": "Function trajectory_splitter_observation",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "min_duration",
+      "type": "FLOAT64",
+      "description": "Parameter min_duration"
+    },
+    {
+      "name": "duration_unit",
+      "type": "STRING",
+      "description": "Parameter duration_unit"
+    },
+    {
+      "name": "min_length",
+      "type": "FLOAT64",
+      "description": "Parameter min_length"
+    }
+  ],
+  "returns": {
+    "type": "ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+    "description": "Returns ARRAY<STRUCT<seg_id STRING, lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>"
+  }
+}

@@ -6,3 +6,8 @@ shapely
 pytest
 pytest-unordered
 tqdm
+toml
+pandas-stubs
+types-toml
+types-tqdm
+types-shapely

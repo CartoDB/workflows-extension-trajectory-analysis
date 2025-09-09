@@ -1,0 +1,30 @@
+{
+  "name": "trajectory_intersection",
+  "description": "Function trajectory_intersection",
+  "parameters": [
+    {
+      "name": "traj_id",
+      "type": "STRING",
+      "description": "Parameter traj_id"
+    },
+    {
+      "name": "trajectory",
+      "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+      "description": "Parameter trajectory"
+    },
+    {
+      "name": "polygon",
+      "type": "STRING",
+      "description": "Parameter polygon"
+    },
+    {
+      "name": "intersection_method",
+      "type": "STRING",
+      "description": "Parameter intersection_method"
+    }
+  ],
+  "returns": {
+    "type": "ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>",
+    "description": "Returns ARRAY<STRUCT<lon FLOAT64, lat FLOAT64, t TIMESTAMP, properties STRING>>"
+  }
+}

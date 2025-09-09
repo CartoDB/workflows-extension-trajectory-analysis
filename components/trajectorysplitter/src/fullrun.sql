@@ -48,7 +48,7 @@ EXECUTE IMMEDIATE FORMAT(
     CASE WHEN method = 'Stops' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_STOP_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_STOP(
                 %s,
                 %s,
                 %f, '%s',
@@ -65,7 +65,7 @@ EXECUTE IMMEDIATE FORMAT(
     WHEN method = 'Temporal' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_TEMPORAL_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_TEMPORAL(
                 %s,
                 %s,
                 '%s',
@@ -80,7 +80,7 @@ EXECUTE IMMEDIATE FORMAT(
     WHEN method = 'Speed' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_SPEED_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_SPEED(
                 %s,
                 %s,
                 %f,
@@ -97,7 +97,7 @@ EXECUTE IMMEDIATE FORMAT(
     WHEN method = 'Observation Gap' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_OBSERVATION_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_OBSERVATION(
                 %s,
                 %s,
                 %f, '%s',
@@ -112,7 +112,7 @@ EXECUTE IMMEDIATE FORMAT(
     WHEN method = 'Value Change' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_VALUECHANGE_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_VALUECHANGE(
                 %s,
                 %s,
                 '%s',
@@ -127,7 +127,7 @@ EXECUTE IMMEDIATE FORMAT(
     WHEN method = 'Angle Change' THEN
         FORMAT(
             '''
-            @@workflows_temp@@.TRAJECTORY_ANGLECHANGE_SPLITTER(
+            @@workflows_temp@@.TRAJECTORY_SPLITTER_ANGLECHANGE(
                 %s,
                 %s,
                 %f,
