@@ -59,7 +59,7 @@ jobs:
         create_credentials_file: true
     
     - name: Deploy BigQuery extension
-      run: uv run carto_extension.py deploy ${{ vars.BQ_TEST_PROJECT }}.${{ vars.BQ_TEST_DATASET }}
+      run: uv run carto_extension.py deploy -d ${{ vars.BQ_TEST_PROJECT }}.${{ vars.BQ_TEST_DATASET }}
       env:
         # CI detection
         CI: true
@@ -127,7 +127,7 @@ jobs:
         uv pip install -r requirements.txt
     
     - name: Deploy Snowflake extension
-      run: uv run carto_extension.py deploy ${{ vars.SF_TEST_DATABASE }}.${{ vars.SF_TEST_SCHEMA }}
+      run: uv run carto_extension.py deploy -d ${{ vars.SF_TEST_DATABASE }}.${{ vars.SF_TEST_SCHEMA }}
       env:
         # CI detection
         CI: true
