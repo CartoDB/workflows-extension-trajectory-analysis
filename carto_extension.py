@@ -36,6 +36,12 @@ WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
 # Initialize verbose flag
 verbose = False
 
+# CI environment detection
+def is_ci_environment():
+    """Check if running in a CI environment."""
+    ci_vars = ['CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'JENKINS_URL', 'TRAVIS', 'CIRCLECI']
+    return any(os.getenv(var) for var in ci_vars)
+
 
 class GeometryComparator:
     """Unified geometry comparator using shapely directly.
@@ -1091,7 +1097,7 @@ def _upload_test_table_sf(filename, component):
     cursor.close()
 
 
-def _get_test_results(metadata, component, progress_bar=None):
+def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=False):
     if metadata["provider"] == "bigquery":
         upload_function = _upload_test_table_bq
         workflows_temp = bq_workflows_temp
@@ -1107,6 +1113,8 @@ def _get_test_results(metadata, component, progress_bar=None):
     components_folder = os.path.join(current_folder, "components")
 
     for component in components:
+        if use_ci_logging:
+            print(f"Processing component: {component['name']}")
         component_folder = os.path.join(components_folder, component["name"])
         test_folder = os.path.join(component_folder, "test")
         # upload test tables
@@ -1168,12 +1176,14 @@ def _get_test_results(metadata, component, progress_bar=None):
                 full_run_query, component, metadata["provider"], tables
             )
 
-            # Update progress bar after each test (dry + full run = 1 item)
+            # Update progress bar or log progress after each test (dry + full run = 1 item)
             if progress_bar:
                 progress_bar.update(1)
                 progress_bar.set_postfix(
                     {"component": component["name"], "test": test_id}
                 )
+            elif use_ci_logging:
+                print(f"✓ Completed test: {component['name']} - {test_id}")
 
         results[component["name"]] = component_results
 
@@ -1279,9 +1289,21 @@ def test(component):
     try:
         # Step 2: Start pytest session
         print("Running pytest-based extension tests...")
-        retcode = pytest.main(
-            ["-vv", "--tb=short", __file__ + "::test_extension_components"]
-        )
+        
+        # Configure pytest arguments based on environment
+        if is_ci_environment():
+            # In CI: use -vv by default for detailed output
+            pytest_args = ["-vv", "--tb=short", __file__ + "::test_extension_components"]
+            print("CI environment detected: using verbose pytest output")
+        else:
+            # Locally: capture user flags from command line and pass them to pytest
+            pytest_args = _build_pytest_args_from_user_flags()
+            pytest_args.append(__file__ + "::test_extension_components")
+            if pytest_args == [__file__ + "::test_extension_components"]:
+                # No user flags provided, use default
+                pytest_args = ["-v", "--tb=short", __file__ + "::test_extension_components"]
+
+        retcode = pytest.main(pytest_args)
 
         if retcode == 0:
             print("Extension correctly tested with pytest.")
@@ -1294,6 +1316,45 @@ def test(component):
             os.unlink(temp_file_path)
         if "PYTEST_TEST_DATA_FILE" in os.environ:
             del os.environ["PYTEST_TEST_DATA_FILE"]
+
+
+def _build_pytest_args_from_user_flags():
+    """Build pytest arguments from user command line flags.
+    
+    Pass all flags that are not used by the script itself to pytest.
+    """
+    # Script's own arguments that should NOT be passed to pytest
+    script_args = {
+        'test', 'capture', 'deploy', 'package', 'check', 'update',  # actions
+        '-c', '--component',  # component flag
+        '-d', '--destination',  # destination flag  
+        '-v', '--verbose'  # verbose flag (note: this is different from pytest -v)
+    }
+    
+    pytest_args = []
+    skip_next = False
+    
+    for i, arg in enumerate(argv[1:], 1):  # Skip script name
+        if skip_next:
+            # This argument is a value for a previous flag, skip it
+            skip_next = False
+            continue
+            
+        # Skip the action argument (first positional argument after script name)
+        if i == 1 and arg in ['test', 'capture', 'deploy', 'package', 'check', 'update']:
+            continue
+            
+        # Skip script-specific flags and their values
+        if arg in ['-c', '--component', '-d', '--destination']:
+            skip_next = True  # Skip the next argument (the value)
+            continue
+        elif arg in ['-v', '--verbose']:
+            continue  # Skip verbose flag
+            
+        # Pass everything else to pytest
+        pytest_args.append(arg)
+    
+    return pytest_args
 
 
 # Pytest-based testing functions
@@ -1322,8 +1383,11 @@ def prepare_test_data(component=None):
             test_configurations = json.loads(substitute_vars(f.read()))
         total_tests += len(test_configurations)
 
-    # Create progress bar only if not in verbose mode
-    if not verbose:
+    # Use progress bar locally, detailed logging in CI
+    if is_ci_environment():
+        print(f"CI environment detected: Running {total_tests} SQL tests with detailed logging")
+        _test_results_cache = _get_test_results(_metadata_cache, component, use_ci_logging=True)
+    elif not verbose:
         with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
             _test_results_cache = _get_test_results(
                 _metadata_cache, component, progress_bar=pbar
