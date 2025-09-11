@@ -665,8 +665,12 @@ def get_procedure_code_bq(component):
 
 def create_sql_code_bq(metadata):
     functions_code = ""
+    function_names = []
     if metadata.get("functions"):
         functions_code = get_functions_code("bigquery")
+        # Get function names for tracking
+        functions = discover_functions()
+        function_names = [f"`{func['name'].upper()}`" for func in functions]
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -687,7 +691,7 @@ def create_sql_code_bq(metadata):
             procedures STRING
         );
 
-        -- remove procedures from previous installations
+        -- remove procedures and functions from previous installations
 
         SET procedures = (
             SELECT procedures
@@ -701,7 +705,12 @@ def create_sql_code_bq(metadata):
                 IF i > ARRAY_LENGTH(proceduresArray) THEN
                     LEAVE;
                 END IF;
-                EXECUTE IMMEDIATE 'DROP PROCEDURE {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
+                -- Check if this is a function (marked with __func_ prefix)
+                IF STARTS_WITH(proceduresArray[ORDINAL(i)], '__func_') THEN
+                    EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], 8);
+                ELSE
+                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
+                END IF;
             END LOOP;
         END IF;
 
@@ -717,7 +726,7 @@ def create_sql_code_bq(metadata):
         -- add to extensions table
 
         INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures)}');"""
+        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures + [f"__func_{name}" for name in function_names])}');"""
     )
 
     return dedent(code)
@@ -791,8 +800,12 @@ def get_procedure_code_sf(component):
 
 def create_sql_code_sf(metadata):
     functions_code = ""
+    function_names = []
     if metadata.get("functions"):
         functions_code = get_functions_code("snowflake")
+        # Get function names for tracking
+        functions = discover_functions()
+        function_names = [func['name'].upper() for func in functions]
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -814,7 +827,7 @@ def create_sql_code_sf(metadata):
                 procedures STRING
             );
 
-            -- remove procedures from previous installations
+            -- remove procedures and functions from previous installations
 
             procedures := (
                 SELECT procedures
@@ -822,13 +835,36 @@ def create_sql_code_sf(metadata):
                 WHERE name = '{metadata["name"]}'
             );
 
-            BEGIN
-                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.'
-                    || REPLACE(:procedures, ';', ';DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.');
-            EXCEPTION
-                WHEN OTHER THEN
-                    NULL;
-            END;
+            -- Parse the procedures string to handle both procedures and functions
+            IF (procedures IS NOT NULL) THEN
+                DECLARE
+                    proc_array ARRAY;
+                    proc_item STRING;
+                    i INTEGER DEFAULT 0;
+                BEGIN
+                    proc_array := SPLIT(procedures, ';');
+                    WHILE (i < ARRAY_SIZE(proc_array)) DO
+                        proc_item := proc_array[i];
+                        -- Check if this is a function (marked with __func_ prefix)
+                        IF (STARTSWITH(proc_item, '__func_')) THEN
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, 8);
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
+                        ELSE
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proc_item;
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
+                        END IF;
+                        i := i + 1;
+                    END WHILE;
+                END;
+            END IF;
 
             DELETE FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME}
             WHERE name = '{metadata["name"]}';
@@ -842,7 +878,7 @@ def create_sql_code_sf(metadata):
             -- add to extensions table
 
             INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string}');
+            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string};{";".join([f"__func_{name}" for name in function_names]) if function_names else ""}');
         END;"""
     )
 
@@ -1158,13 +1194,13 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
 
-        tables = {}
         component_results = {}
         for test_configuration in test_configurations:
             param_values = []
             test_id = test_configuration["id"]
             skip_outputs = test_configuration.get("skip_output", [])
             component_results[test_id] = {}
+            tables = {}
             for inputparam in component["inputs"]:
                 param_value = test_configuration["inputs"][inputparam["name"]]
                 if param_value is None:
@@ -1678,7 +1714,24 @@ def capture(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
     deploy(None)
-    results = _get_test_results(metadata, component)
+    
+    # Calculate total number of tests to run for progress bar
+    total_tests = 0
+    for comp in metadata["components"]:
+        if component and comp["name"] != component:
+            continue
+        component_folder = os.path.join(components_folder, comp["name"])
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(substitute_vars(f.read()))
+        total_tests += len(test_configurations)
+    
+    # Run tests with progress bar
+    if not verbose:
+        with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
+            results = _get_test_results(metadata, component, progress_bar=pbar)
+    else:
+        results = _get_test_results(metadata, component)
     dotenv = dotenv_values()
     for component in metadata["components"]:
         component_folder = os.path.join(components_folder, component["name"])
