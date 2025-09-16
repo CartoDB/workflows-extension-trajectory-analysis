@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path
 from sys import argv
 from textwrap import dedent
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 import numpy as np
@@ -23,7 +23,6 @@ import snowflake.connector
 import toml
 from dotenv import dotenv_values, load_dotenv
 from google.cloud import bigquery
-from pytest_unordered import unordered
 from shapely import wkt
 from shapely.geometry import shape
 from shapely.wkt import dumps
@@ -216,14 +215,25 @@ def create_metadata():
     return metadata
 
 
-def discover_functions(functions_dir: Path = Path("functions/")) -> list[dict]:
+def discover_functions(
+    functions_dir: Path = Path("functions/"), extension_metadata: Optional[dict] = None
+) -> list[dict]:
     """Discover all function definitions in the functions directory.
 
+    Args:
+        functions_dir: Directory containing function definitions
+        extension_metadata: Extension metadata to validate functions against
+
     Returns:
-        List of function metadata dictionaries
+        List of function metadata dictionaries for functions listed in extension metadata
     """
     if not functions_dir.exists():
         return []
+
+    # Get the list of allowed function names from extension metadata
+    allowed_functions = set()
+    if extension_metadata and extension_metadata.get("functions"):
+        allowed_functions = set(extension_metadata["functions"])
 
     functions = []
     for function_folder in functions_dir.iterdir():
@@ -233,12 +243,37 @@ def discover_functions(functions_dir: Path = Path("functions/")) -> list[dict]:
                 try:
                     with open(metadata_file, "r") as f:
                         metadata = json.load(f)
+
+                    function_name = metadata.get("name")
+                    if not function_name:
+                        print(
+                            f"Warning: Function in {function_folder.name} has no name in metadata"
+                        )
+                        continue
+
+                    # Only include functions that are listed in extension metadata
+                    if allowed_functions and function_name not in allowed_functions:
+                        if verbose:
+                            print(
+                                f"Skipping function '{function_name}' - not listed in extension metadata"
+                            )
+                        continue
+
                     metadata["_path"] = function_folder
                     functions.append(metadata)
                 except Exception as e:
                     print(
                         f"Warning: Failed to load metadata for {function_folder.name}: {e}"
                     )
+
+    # Warn about functions listed in metadata but not found in directory
+    if allowed_functions:
+        discovered_function_names = {f["name"] for f in functions}
+        missing_functions = allowed_functions - discovered_function_names
+        for missing_func in missing_functions:
+            print(
+                f"Warning: Function '{missing_func}' is listed in extension metadata but not found in functions/ directory"
+            )
 
     return functions
 
@@ -334,16 +369,17 @@ def _extract_python_version(requires_python: str) -> str:
 
 
 def generate_function_sql_bigquery(function_metadata: dict) -> str:
-    """Generate BigQuery SQL code for a single function.
+    """Generate BigQuery SQL code for a single function or procedure.
 
     Args:
         function_metadata: Function metadata dictionary
 
     Returns:
-        SQL code to create the BigQuery function
+        SQL code to create the BigQuery function or procedure
     """
     func_name = function_metadata["name"].upper()
     func_path = function_metadata["_path"]
+    func_type = function_metadata.get("type", "function")
 
     # Build parameter list with BigQuery types
     params = []
@@ -361,13 +397,25 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
     # Infer function type from definition file extension
     sql_definition_file = func_path / "src" / "definition.sql"
     python_definition_file = func_path / "src" / "definition.py"
+    javascript_definition_file = func_path / "src" / "definition.js"
 
     if sql_definition_file.exists():
-        # SQL function for BigQuery
+        # SQL function or procedure for BigQuery
         with open(sql_definition_file, "r") as f:
             sql_body = f.read().strip()
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+        if func_type == "procedure":
+            # Create a stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            OPTIONS (
+                description="{function_metadata.get('description', '')}"
+            )
+            {sql_body}"""
+        else:
+            # Create a function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
                 {params_str}
             )
             RETURNS {return_type}
@@ -376,6 +424,14 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             );"""
 
     elif python_definition_file.exists():
+        # Check if this is a procedure - BigQuery doesn't support Python stored procedures
+        if func_type == "procedure":
+            raise NotImplementedError(
+                f"BigQuery Python stored procedures are not supported. "
+                f"Function '{func_name}' is marked as type 'procedure' but uses Python definition. "
+                f"BigQuery only supports Python UDFs, not stored procedures."
+            )
+
         # Python function for BigQuery
         with open(python_definition_file, "r") as f:
             python_code = f.read().strip()
@@ -397,7 +453,7 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
         options.append(f"runtime_version='python-{python_version}'")
         if packages:
             options.append(f"packages=[{packages_str}]")
-        
+
         # Add extra options from metadata if present
         extra_options = function_metadata.get("extra_options", {})
         for key, value in extra_options.items():
@@ -410,7 +466,7 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             else:
                 # Handle other types (numbers, booleans)
                 options.append(f"{key}={value}")
-        
+
         options_str = ",\n    ".join(options)
 
         return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
@@ -424,24 +480,73 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             AS r\"\"\"\n{clean_python_code}\n\"\"\";
             """
 
+    elif javascript_definition_file.exists():
+        # Check if this is a procedure - BigQuery doesn't support JavaScript stored procedures
+        if func_type == "procedure":
+            raise NotImplementedError(
+                f"BigQuery JavaScript stored procedures are not supported. "
+                f"Function '{func_name}' is marked as type 'procedure' but uses JavaScript definition. "
+                f"BigQuery only supports JavaScript UDFs, not stored procedures."
+            )
+
+        # JavaScript UDF for BigQuery
+        with open(javascript_definition_file, "r") as f:
+            javascript_code = f.read().strip()
+
+        # Add extra options from metadata if present
+        options = []
+        extra_options = function_metadata.get("extra_options", {})
+        for key, value in extra_options.items():
+            if isinstance(value, str):
+                options.append(f"{key}='{value}'")
+            elif isinstance(value, list):
+                # Handle list values like libraries
+                list_str = ",".join([f"'{item}'" for item in value])
+                options.append(f"{key}=[{list_str}]")
+            else:
+                # Handle other types (numbers, booleans)
+                options.append(f"{key}={value}")
+
+        options_str = ",\n    ".join(options) if options else ""
+        if options_str:
+            options_clause = ("\n" + " " * 12).join(
+                [
+                    "",
+                    "OPTIONS (",
+                    "   " + options_str,
+                    ")",
+                ]
+            )
+        else:
+            options_clause = ""
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE js{options_clause}
+            AS r\"\"\"\n{javascript_code}\n\"\"\";
+            """
+
     else:
         print(
-            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+            f"Warning: No definition file found for {func_name} (checked definition.sql, definition.py, and definition.js)"
         )
         return ""
 
 
 def generate_function_sql_snowflake(function_metadata: dict) -> str:
-    """Generate Snowflake SQL code for a single function.
+    """Generate Snowflake SQL code for a single function or procedure.
 
     Args:
         function_metadata: Function metadata dictionary
 
     Returns:
-        SQL code to create the Snowflake function
+        SQL code to create the Snowflake function or procedure
     """
     func_name = function_metadata["name"].upper()
     func_path = function_metadata["_path"]
+    func_type = function_metadata.get("type", "function")
 
     # Known Snowflake data types
     known_snowflake_types = {
@@ -507,13 +612,28 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
     # Infer function type from definition file extension
     sql_definition_file = func_path / "src" / "definition.sql"
     python_definition_file = func_path / "src" / "definition.py"
+    javascript_definition_file = func_path / "src" / "definition.js"
 
     if sql_definition_file.exists():
-        # SQL function for Snowflake
+        # SQL function or procedure for Snowflake
         with open(sql_definition_file, "r") as f:
             sql_body = f.read().strip()
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+        if func_type == "procedure":
+            # Create a stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE SQL
+            EXECUTE AS CALLER
+            AS
+            $$
+                {sql_body}
+            $$;"""
+        else:
+            # Create a function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
                 {params_str}
             )
             RETURNS {return_type}
@@ -523,7 +643,7 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             $$;"""
 
     elif python_definition_file.exists():
-        # Python function for Snowflake
+        # Python function or procedure for Snowflake
         with open(python_definition_file, "r") as f:
             python_code = f.read().strip()
 
@@ -537,10 +657,10 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             print(f"Error in function {func_name}: {e}")
             return ""
 
-        # Snowflake Python UDF format
+        # Snowflake Python UDF/stored procedure format
         packages_str = ",".join([f"'{pkg}'" for pkg in packages]) if packages else ""
         packages_clause = f"PACKAGES = ({packages_str})" if packages else ""
-        
+
         # Add extra options from metadata if present
         extra_options_clauses = []
         extra_options = function_metadata.get("extra_options", {})
@@ -554,11 +674,28 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             else:
                 # Handle other types (numbers, booleans)
                 extra_options_clauses.append(f"{key.upper()} = {value}")
-        
-        extra_options_str = "\n            ".join(extra_options_clauses)
-        extra_options_line = f"\n            {extra_options_str}" if extra_options_clauses else ""
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+        extra_options_str = "\n            ".join(extra_options_clauses)
+        extra_options_line = (
+            f"\n            {extra_options_str}" if extra_options_clauses else ""
+        )
+
+        if func_type == "procedure":
+            # Create a Python stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE PYTHON
+            RUNTIME_VERSION = '{python_version}'
+            {packages_clause}{extra_options_line}
+            HANDLER = 'main'
+            AS
+            $$\n{clean_python_code}\n$$;
+            """
+        else:
+            # Create a Python function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
                 {params_str}
             )
             RETURNS {return_type}
@@ -570,23 +707,57 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             $$\n{clean_python_code}\n$$;
             """
 
+    elif javascript_definition_file.exists():
+        # JavaScript function or procedure for Snowflake
+        with open(javascript_definition_file, "r") as f:
+            javascript_code = f.read().strip()
+
+        if func_type == "procedure":
+            # Create a JavaScript stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE JAVASCRIPT
+            EXECUTE AS CALLER
+            AS
+            $$
+                {javascript_code}
+            $$;
+            """
+        else:
+            # Create a JavaScript function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE JAVASCRIPT
+            AS
+            $$
+                {javascript_code}
+            $$;
+            """
+
     else:
         print(
-            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+            f"Warning: No definition file found for {func_name} (checked definition.sql, definition.py, and definition.js)"
         )
         return ""
 
 
-def get_functions_code(provider: str = "bigquery") -> str:
+def get_functions_code(
+    provider: str = "bigquery", extension_metadata: Optional[dict] = None
+) -> str:
     """Generate code to declare all UDFs for the specified provider.
 
     Args:
         provider: Target provider ('bigquery' or 'snowflake')
+        extension_metadata: Extension metadata to validate functions against
 
     Returns:
         SQL code to create all functions
     """
-    functions = discover_functions()
+    functions = discover_functions(extension_metadata=extension_metadata)
     if not functions:
         return ""
 
@@ -667,10 +838,16 @@ def create_sql_code_bq(metadata):
     functions_code = ""
     function_names = []
     if metadata.get("functions"):
-        functions_code = get_functions_code("bigquery")
-        # Get function names for tracking
-        functions = discover_functions()
-        function_names = [f"`{func['name'].upper()}`" for func in functions]
+        functions_code = get_functions_code("bigquery", extension_metadata=metadata)
+        # Get function names for tracking with appropriate prefixes
+        functions = discover_functions(extension_metadata=metadata)
+        function_names = []
+        for func in functions:
+            func_type = func.get("type", "function")
+            if func_type == "procedure":
+                function_names.append(f"__stproc_{func['name'].upper()}")
+            else:
+                function_names.append(f"__func_{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -705,10 +882,13 @@ def create_sql_code_bq(metadata):
                 IF i > ARRAY_LENGTH(proceduresArray) THEN
                     LEAVE;
                 END IF;
-                -- Check if this is a function (marked with __func_ prefix)
+                -- Check if this is custom function or procedure based on prefix
                 IF STARTS_WITH(proceduresArray[ORDINAL(i)], '__func_') THEN
                     EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], 8);
+                ELSEIF STARTS_WITH(proceduresArray[ORDINAL(i)], '__stproc_') THEN
+                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], 10);
                 ELSE
+                    -- Components (no prefix) 
                     EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
                 END IF;
             END LOOP;
@@ -726,7 +906,7 @@ def create_sql_code_bq(metadata):
         -- add to extensions table
 
         INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures + [f"__func_{name}" for name in function_names])}');"""
+        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures + function_names)}');"""
     )
 
     return dedent(code)
@@ -802,10 +982,16 @@ def create_sql_code_sf(metadata):
     functions_code = ""
     function_names = []
     if metadata.get("functions"):
-        functions_code = get_functions_code("snowflake")
-        # Get function names for tracking
-        functions = discover_functions()
-        function_names = [func['name'].upper() for func in functions]
+        functions_code = get_functions_code("snowflake", extension_metadata=metadata)
+        # Get function names for tracking with appropriate prefixes
+        functions = discover_functions(extension_metadata=metadata)
+        function_names = []
+        for func in functions:
+            func_type = func.get("type", "function")
+            if func_type == "procedure":
+                function_names.append(f"__stproc_{func['name'].upper()}")
+            else:
+                function_names.append(f"__func_{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -845,7 +1031,7 @@ def create_sql_code_sf(metadata):
                     proc_array := SPLIT(procedures, ';');
                     WHILE (i < ARRAY_SIZE(proc_array)) DO
                         proc_item := proc_array[i];
-                        -- Check if this is a function (marked with __func_ prefix)
+                        -- Check if this is a function or procedure based on prefix
                         IF (STARTSWITH(proc_item, '__func_')) THEN
                             BEGIN
                                 EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, 8);
@@ -853,7 +1039,15 @@ def create_sql_code_sf(metadata):
                                 WHEN OTHER THEN
                                     NULL;
                             END;
+                        ELSEIF (STARTSWITH(proc_item, '__stproc_')) THEN
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, 10);
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
                         ELSE
+                            -- Legacy behavior for components (no prefix)
                             BEGIN
                                 EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proc_item;
                             EXCEPTION
@@ -878,7 +1072,7 @@ def create_sql_code_sf(metadata):
             -- add to extensions table
 
             INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string};{";".join([f"__func_{name}" for name in function_names]) if function_names else ""}');
+            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string};{";".join(function_names) if function_names else ""}');
         END;"""
     )
 
@@ -887,10 +1081,14 @@ def create_sql_code_sf(metadata):
 
 def deploy_bq(metadata, destination):
     print("Deploying extension to BigQuery...")
-    destination = f"`{destination}`" if destination else bq_workflows_temp
+    if not destination:
+        destination = bq_workflows_temp
+    elif not (destination.startswith("`") and destination.endswith("`")):
+        destination = f"`{destination}`"
+
     sql_code = create_sql_code_bq(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
-    sql_code = substitute_vars(sql_code)
+    sql_code = substitute_vars(sql_code, provider="bigquery")
     if verbose:
         print(sql_code)
     query_job = bq_client().query(sql_code)
@@ -903,7 +1101,7 @@ def deploy_sf(metadata, destination):
     destination = destination or sf_workflows_temp
     sql_code = create_sql_code_sf(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
-    sql_code = substitute_vars(sql_code)
+    sql_code = substitute_vars(sql_code, provider="snowflake")
 
     if verbose:
         print(sql_code)
@@ -914,20 +1112,31 @@ def deploy_sf(metadata, destination):
 
 def deploy(destination):
     metadata = create_metadata()
+
     if metadata["provider"] == "bigquery":
-        deploy_bq(metadata, destination)
+        deploy_bq(metadata, destination or bq_workflows_temp)
     else:
-        deploy_sf(metadata, destination)
+        deploy_sf(metadata, destination or sf_workflows_temp)
 
 
-def substitute_vars(text: str) -> str:
+def substitute_vars(text: str, provider: Optional[str] = None) -> str:
     """Substitute all variables in a string with their values from the environment.
 
     For a given string, all the variables using the syntax `@@variable_name@@`
     will be interpolated with their values from the corresponding env vars.
     It will raise a ValueError if any variable name is not present in the
     environment.
+
+    Args:
+        text: The text to substitute variables in
+        provider: The provider type ('bigquery' or 'snowflake') to auto-infer workflows_temp
     """
+    # Set workflows_temp if not already set
+    if not os.getenv("WORKFLOWS_TEMP") and provider == "bigquery":
+        os.environ["WORKFLOWS_TEMP"] = bq_workflows_temp.strip("`")
+    elif not os.getenv("WORKFLOWS_TEMP") and provider == "snowflake":
+        os.environ["WORKFLOWS_TEMP"] = sf_workflows_temp
+
     pattern = r"@@([a-zA-Z0-9_]+)@@"
 
     for variable in re.findall(pattern, text, re.MULTILINE):
@@ -1009,7 +1218,13 @@ def _upload_test_table_bq(filename, component):
             schema.append(infer_schema_field_bq(key, value))
 
     dataset_id = os.getenv("BQ_TEST_DATASET")
-    table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+    if component.get("_is_setup_table", False):
+        # For setup tables, use direct naming
+        table_id = component["name"]
+    else:
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
 
     dataset_ref = bq_client().dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
@@ -1085,7 +1300,13 @@ def _upload_test_table_sf(filename, component):
             key: infer_schema_field_sf(key, value) for key, value in data[0].items()
         }
 
-    table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+    if component.get("_is_setup_table", False):
+        # For setup tables, use direct naming
+        table_id = component["name"]
+    else:
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
     create_table_sql = f"CREATE OR REPLACE TABLE {sf_workflows_temp}.{table_id} ("
     for key, value in data[0].items():
         create_table_sql += f"{key} {data_types[key]}, "
@@ -1196,6 +1417,14 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
 
         component_results = {}
         for test_configuration in test_configurations:
+            setup_tables = test_configuration.get("setup_tables", {})
+            for table_name, filename in setup_tables.items():
+                ndjson_full_path = os.path.join(test_folder, f"{filename}.ndjson")
+                if os.path.exists(ndjson_full_path):
+                    # Indicate this is a setup table with explicit naming
+                    setup_component = {"name": table_name, "_is_setup_table": True}
+                    upload_function(ndjson_full_path, setup_component)
+
             param_values = []
             test_id = test_configuration["id"]
             skip_outputs = test_configuration.get("skip_output", [])
@@ -1207,7 +1436,11 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
                     param_values.append(None)
                 else:
                     if inputparam["type"] == "Table":
-                        tablename = f"'{workflows_temp}._test_{component['name']}_{param_value}'"
+                        # Check if this is a setup table (use clean name) or regular test table
+                        if param_value in setup_tables:
+                            tablename = f"'{workflows_temp}.{param_value}'"
+                        else:
+                            tablename = f"'{workflows_temp}._test_{component['name']}_{param_value}'"
                         param_values.append(tablename)
                     elif inputparam["type"] in [
                         "String",
@@ -1357,6 +1590,10 @@ def test(component, no_deploy=False):
     # Set environment variable so pytest can find the data file
     os.environ["PYTEST_TEST_DATA_FILE"] = temp_file_path
 
+    # Set component filter for pytest
+    if component:
+        os.environ["PYTEST_COMPONENT_FILTER"] = component
+
     try:
         # Step 2: Start pytest session
         print("Running pytest-based extension tests...")
@@ -1395,6 +1632,8 @@ def test(component, no_deploy=False):
             os.unlink(temp_file_path)
         if "PYTEST_TEST_DATA_FILE" in os.environ:
             del os.environ["PYTEST_TEST_DATA_FILE"]
+        if "PYTEST_COMPONENT_FILTER" in os.environ:
+            del os.environ["PYTEST_COMPONENT_FILTER"]
 
 
 def _build_pytest_args_from_user_flags():
@@ -1441,14 +1680,18 @@ def prepare_test_data(component=None, no_deploy=False):
     if not no_deploy:
         deploy(None)
 
-    # Calculate total number of tests to run for progress bar
-    total_tests = 0
+    # Filter components first, then calculate total number of tests for progress bar
+    components_to_test = _metadata_cache["components"]
+    if component:
+        components_to_test = [
+            c for c in _metadata_cache["components"] if c["name"] == component
+        ]
+
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
 
-    for comp in _metadata_cache["components"]:
-        if component and comp["name"] != component:
-            continue
+    total_tests = 0
+    for comp in components_to_test:
         component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
@@ -1476,6 +1719,8 @@ def load_test_cases():
     """Generate test cases from pre-collected data."""
     # Load test data from file if available
     test_data_file = os.environ.get("PYTEST_TEST_DATA_FILE")
+    component_filter = os.environ.get("PYTEST_COMPONENT_FILTER")
+
     if test_data_file and os.path.exists(test_data_file):
         with open(test_data_file, "rb") as f:
             data = pickle.load(f)
@@ -1494,6 +1739,9 @@ def load_test_cases():
     components_folder = os.path.join(current_folder, "components")
 
     for component in metadata_cache["components"]:
+        # Apply component filter if specified
+        if component_filter and component["name"] != component_filter:
+            continue
         component_folder = os.path.join(components_folder, component["name"])
 
         # Load test configuration to get test_sorting parameter
@@ -1507,16 +1755,20 @@ def load_test_cases():
         for test_id, outputs in test_results_cache[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             test_filename = os.path.join(test_folder, f"{test_id}.json")
-            skip_outputs = outputs['skip_output']
+            skip_outputs = outputs["skip_output"]
 
             # Results test case (skip if test_id starts with "skip_", skip output if table in skip_outputs)
             output_names = []
-            for mode in ['dry', 'full']:
+            for mode in ["dry", "full"]:
                 if mode in outputs:
-                    outputs[mode] = {k: v for k, v in outputs[mode].items() if k not in skip_outputs}
+                    outputs[mode] = {
+                        k: v for k, v in outputs[mode].items() if k not in skip_outputs
+                    }
                     output_names.append(list(outputs[mode].keys()))
-            output_names = list(set(item for sublist in output_names for item in sublist))
-            outputs.pop('skip_output', None)
+            output_names = list(
+                set(item for sublist in output_names for item in sublist)
+            )
+            outputs.pop("skip_output", None)
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1560,6 +1812,8 @@ def pytest_generate_tests(metafunc):
 
 def test_extension_components(test_case):
     """Parametrized test function that runs all component tests."""
+    from pytest_unordered import unordered
+
     if test_case["test_type"] == "schema":
         # Test schema consistency
         for output_name, dry_output in test_case["outputs"]["dry"].items():
@@ -1714,18 +1968,22 @@ def capture(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
     deploy(None)
-    
-    # Calculate total number of tests to run for progress bar
+
+    # Filter components first, then calculate total number of tests for progress bar
+    components_to_test = metadata["components"]
+    if component:
+        components_to_test = [
+            c for c in metadata["components"] if c["name"] == component
+        ]
+
     total_tests = 0
-    for comp in metadata["components"]:
-        if component and comp["name"] != component:
-            continue
+    for comp in components_to_test:
         component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
         total_tests += len(test_configurations)
-    
+
     # Run tests with progress bar
     if not verbose:
         with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
@@ -1733,7 +1991,9 @@ def capture(component):
     else:
         results = _get_test_results(metadata, component)
     dotenv = dotenv_values()
-    for component in metadata["components"]:
+
+    # Reuse the same filtered component list for results processing
+    for component in components_to_test:
         component_folder = os.path.join(components_folder, component["name"])
 
         # Load test configuration to get test_sorting parameter
@@ -1748,7 +2008,7 @@ def capture(component):
             test_folder = os.path.join(component_folder, "test", "fixtures")
             os.makedirs(test_folder, exist_ok=True)
             test_filename = os.path.join(test_folder, f"{test_id}.json")
-            skip_outputs = outputs.get('skip_output', [])
+            skip_outputs = outputs.get("skip_output", [])
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1921,13 +2181,13 @@ parser.add_argument(
     "--destination",
     help="Choose an specific destination",
     type=str,
-    required="deploy" in argv,
+    required=False,
 )
 parser.add_argument("-v", "--verbose", help="Verbose mode", action="store_true")
 parser.add_argument(
     "--no-deploy",
     help="Skip deployment before testing (for test action only)",
-    action="store_true"
+    action="store_true",
 )
 
 # Only parse args and run if this file is executed directly
