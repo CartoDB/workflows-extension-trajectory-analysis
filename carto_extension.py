@@ -1454,6 +1454,7 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
                     else:
                         param_values.append(param_value)
 
+
             for outputparam in component["outputs"]:
                 tablename = f"{workflows_temp}._table_{uuid4().hex}"
                 param_values.append(f"'{tablename}'")
@@ -1478,6 +1479,7 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             component_results[test_id]["full"] = _run_query(
                 full_run_query, component, metadata["provider"], tables
             )
+            component_results[test_id]["skip_output"] = skip_outputs
             component_results[test_id]["skip_output"] = skip_outputs
 
             # Update progress bar or log progress after each test (dry + full run = 1 item)
@@ -1581,6 +1583,7 @@ def test(component, no_deploy=False):
 
     # Step 1: Prepare all test data and save to file
     prepare_test_data(component, no_deploy=no_deploy)
+    prepare_test_data(component, no_deploy=no_deploy)
 
     # Save test data to temporary file
     with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".pkl") as f:
@@ -1677,6 +1680,8 @@ def prepare_test_data(component=None, no_deploy=False):
     global _test_results_cache, _metadata_cache
 
     _metadata_cache = create_metadata()
+    if not no_deploy:
+        deploy(None)
     if not no_deploy:
         deploy(None)
 
