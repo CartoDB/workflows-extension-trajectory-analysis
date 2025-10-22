@@ -128,7 +128,7 @@ load_dotenv()
 
 bq_workflows_temp = f"`{os.getenv('BQ_TEST_PROJECT')}.{os.getenv('BQ_TEST_DATASET')}`"
 sf_workflows_temp = f"{os.getenv('SF_TEST_DATABASE')}.{os.getenv('SF_TEST_SCHEMA')}"
-or_workflows_temp = os.getenv('OR_TEST_SCHEMA', 'CARTO_AT')
+or_workflows_temp = os.getenv("OR_TEST_SCHEMA", "CARTO_AT")
 
 sf_client_instance = None
 bq_client_instance = None
@@ -169,15 +169,20 @@ def or_client():
             import tempfile
             import atexit
             import shutil
+
             # Handle wallet if configured
             wallet_dir = None
             wallet_location = os.getenv("OR_WALLET_LOCATION")
-            if wallet_location and wallet_location.endswith('.zip'):
-                wallet_dir = tempfile.mkdtemp(prefix='oracle_wallet_')
+            if wallet_location and wallet_location.endswith(".zip"):
+                wallet_dir = tempfile.mkdtemp(prefix="oracle_wallet_")
                 or_wallet_temp_dir = wallet_dir
                 # Register cleanup function
-                atexit.register(lambda: shutil.rmtree(wallet_dir, ignore_errors=True) if os.path.exists(wallet_dir) else None)
-                with zipfile.ZipFile(wallet_location, 'r') as z:
+                atexit.register(
+                    lambda: shutil.rmtree(wallet_dir, ignore_errors=True)
+                    if os.path.exists(wallet_dir)
+                    else None
+                )
+                with zipfile.ZipFile(wallet_location, "r") as z:
                     z.extractall(wallet_dir)
             elif wallet_location:
                 wallet_dir = wallet_location
@@ -188,7 +193,7 @@ def or_client():
                 dsn=os.getenv("OR_CONNECTION_STRING"),
                 config_dir=wallet_dir,
                 wallet_location=wallet_dir,
-                wallet_password=os.getenv("OR_WALLET_PASSWORD")
+                wallet_password=os.getenv("OR_WALLET_PASSWORD"),
             )
         except Exception as e:
             raise Exception(f"Error connecting to Oracle: {e}")
@@ -1032,12 +1037,12 @@ def get_procedure_code_sf(component):
 def _strip_sql_comments(sql_code):
     """Remove single-line and multi-line comments from SQL code."""
     # Remove multi-line comments /* ... */
-    sql_code = re.sub(r'/\*.*?\*/', '', sql_code, flags=re.DOTALL)
+    sql_code = re.sub(r"/\*.*?\*/", "", sql_code, flags=re.DOTALL)
     # Remove single-line comments starting with --
-    sql_code = re.sub(r'--[^\n]*', '', sql_code)
+    sql_code = re.sub(r"--[^\n]*", "", sql_code)
     # Remove empty lines
-    lines = [line for line in sql_code.split('\n') if line.strip()]
-    return '\n'.join(lines)
+    lines = [line for line in sql_code.split("\n") if line.strip()]
+    return "\n".join(lines)
 
 
 def get_procedure_code_oracle(component):
@@ -1061,19 +1066,22 @@ def get_procedure_code_oracle(component):
         [
             f"{p['name']} IN {_param_type_to_oracle_type(p['type'])[1]}"
             for p in component["inputs"]
-        ] + [
+        ]
+        + [
             f"{p['name']} IN OUT {_param_type_to_oracle_type(p['type'])[1]}"
             for p in component["outputs"]
         ]
     )
 
     carto_env_vars = component["cartoEnvVars"] if "cartoEnvVars" in component else []
-    env_vars = newline_and_tab + newline_and_tab.join(
-        [
-            f"{v} VARCHAR2 := JSON_VALUE(env_vars, '$.{v}');"
-            for v in carto_env_vars
-        ]
-    ) if carto_env_vars else ""
+    env_vars = (
+        newline_and_tab
+        + newline_and_tab.join(
+            [f"{v} VARCHAR2 := JSON_VALUE(env_vars, '$.{v}');" for v in carto_env_vars]
+        )
+        if carto_env_vars
+        else ""
+    )
 
     procedure_code = dedent(
         f"""\
@@ -1209,7 +1217,7 @@ def create_sql_code_oracle(metadata):
 
     procedures = [c["procedureName"] for c in metadata["components"]]
     metadata_string = json.dumps(metadata).replace("'", "''")
-    procedures_string = ';'.join(procedures)
+    procedures_string = ";".join(procedures)
 
     code = dedent(
         f"""BEGIN
@@ -1334,20 +1342,31 @@ def deploy_oracle(metadata, destination):
         cursor.execute(create_table_sql)
 
         # Delete old extension if exists
-        cursor.execute(f"DELETE FROM {destination}.{EXTENSIONS_TABLENAME} WHERE name = :name", {'name': metadata['name']})
+        cursor.execute(
+            f"DELETE FROM {destination}.{EXTENSIONS_TABLENAME} WHERE name = :name",
+            {"name": metadata["name"]},
+        )
 
         # Insert new extension metadata
         metadata_string = json.dumps(metadata)
-        procedures_string = ';'.join([c["procedureName"] for c in metadata["components"]])
+        procedures_string = ";".join(
+            [c["procedureName"] for c in metadata["components"]]
+        )
         cursor.execute(
             f"INSERT INTO {destination}.{EXTENSIONS_TABLENAME} (name, metadata, procedures) VALUES (:name, :metadata, :procedures)",
-            {'name': metadata['name'], 'metadata': metadata_string, 'procedures': procedures_string}
+            {
+                "name": metadata["name"],
+                "metadata": metadata_string,
+                "procedures": procedures_string,
+            },
         )
 
         # Create procedures
         for component in metadata["components"]:
             procedure_code = get_procedure_code_oracle(component)
-            procedure_code = procedure_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
+            procedure_code = procedure_code.replace(
+                WORKFLOWS_TEMP_PLACEHOLDER, destination
+            )
             procedure_code = substitute_vars(procedure_code, provider="oracle")
             if verbose:
                 print(f"\nCreating procedure: {component['procedureName']}")
@@ -1668,15 +1687,19 @@ def _upload_test_table_oracle(filename, component):
             "DATE": "DATE",
             "TIMESTAMP": "TIMESTAMP",
             "DATETIME": "TIMESTAMP",
-            "GEOGRAPHY": "SDO_GEOMETRY"
+            "GEOGRAPHY": "SDO_GEOMETRY",
         }
-        data_types = {k: type_mapping.get(v, "VARCHAR2(4000)") for k, v in data_types.items()}
+        data_types = {
+            k: type_mapping.get(v, "VARCHAR2(4000)") for k, v in data_types.items()
+        }
 
     if component.get("_is_setup_table", False):
         # For setup tables, use direct naming
         table_id = component["name"]
     else:
-        table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
 
     # Create table
     create_table_sql = f"CREATE TABLE {or_workflows_temp}.{table_id} ("
@@ -1687,7 +1710,9 @@ def _upload_test_table_oracle(filename, component):
     cursor = or_client().cursor()
     try:
         # Drop table if exists
-        cursor.execute(f"BEGIN EXECUTE IMMEDIATE 'DROP TABLE {or_workflows_temp}.{table_id}'; EXCEPTION WHEN OTHERS THEN NULL; END;")
+        cursor.execute(
+            f"BEGIN EXECUTE IMMEDIATE 'DROP TABLE {or_workflows_temp}.{table_id}'; EXCEPTION WHEN OTHERS THEN NULL; END;"
+        )
         cursor.execute(create_table_sql)
 
         # Insert data
@@ -1741,9 +1766,14 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             print(f"Processing component: {component['name']}")
         component_folder = os.path.join(components_folder, component["name"])
         test_folder = os.path.join(component_folder, "test")
-        
+
         # run tests
         test_configuration_file = os.path.join(test_folder, "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{component['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
 
@@ -1754,13 +1784,13 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             for table_name, filename in setup_tables.items():
                 if filename not in setup_tables_map:
                     setup_tables_map[filename] = table_name
-        
+
         # Upload all test tables (setup tables with explicit naming, regular tables with prefix)
         for filename in os.listdir(test_folder):
             if filename.endswith(".ndjson"):
                 ndjson_full_path = os.path.join(test_folder, filename)
                 filename_without_ext = filename.replace(".ndjson", "")
-                
+
                 if filename_without_ext in setup_tables_map:
                     # This is a setup table - upload with explicit naming
                     table_name = setup_tables_map[filename_without_ext]
@@ -1925,7 +1955,7 @@ def _run_query(
         # Oracle requires a single query per statement
         for statement in statements:
             cur.execute(statement)
-        
+
         for output in component["outputs"]:
             query = f"SELECT * FROM {tables[output['name']]}"
             cur = or_client().cursor()
@@ -2058,6 +2088,11 @@ def prepare_test_data(component=None, no_deploy=False):
     for comp in components_to_test:
         component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{comp['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
         total_tests += len(test_configurations)
@@ -2110,6 +2145,11 @@ def load_test_cases():
 
         # Load test configuration to get test_sorting parameter
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{component['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
 
@@ -2344,6 +2384,11 @@ def capture(component):
     for comp in components_to_test:
         component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{comp['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(substitute_vars(f.read()))
         total_tests += len(test_configurations)
