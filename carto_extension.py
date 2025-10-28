@@ -1395,7 +1395,7 @@ def deploy(destination):
         raise ValueError(f"Unknown provider: {metadata['provider']}")
 
 
-def substitute_vars(text: str, provider: Optional[str] = None) -> str:
+def substitute_vars(text: str, provider: str) -> str:
     """Substitute all variables in a string with their values from the environment.
 
     For a given string, all the variables using the syntax `@@variable_name@@`
@@ -1515,7 +1515,7 @@ def _upload_test_table_bq(filename, component):
     with open(filename, "rb") as source_file:
         processed = io.BytesIO()
         for line in source_file:
-            processed_line = substitute_vars(line.decode("utf-8"))
+            processed_line = substitute_vars(line.decode("utf-8"), "bigquery")
             processed.write(processed_line.encode("utf-8"))
 
         processed.seek(0)
@@ -1569,7 +1569,7 @@ def _upload_test_table_sf(filename, component):
         data = []
         for line in f.readlines():
             if line.strip():
-                data.append(json.loads(substitute_vars(line)))
+                data.append(json.loads(substitute_vars(line, "snowflake")))
     if os.path.exists(filename.replace(".ndjson", ".schema")):
         with open(filename.replace(".ndjson", ".schema")) as f:
             data_types = json.load(f)
@@ -1669,7 +1669,7 @@ def _upload_test_table_oracle(filename, component):
         data = []
         for l in f.readlines():
             if l.strip():
-                data.append(json.loads(substitute_vars(l)))
+                data.append(json.loads(substitute_vars(l, "oracle")))
 
     if os.path.exists(filename.replace(".ndjson", ".schema")):
         with open(filename.replace(".ndjson", ".schema")) as f:
@@ -1775,7 +1775,9 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             )
             continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), metadata["provider"])
+            )
 
         # Collect setup tables from all test configurations
         setup_tables_map = {}  # filename -> table_name
@@ -2094,7 +2096,9 @@ def prepare_test_data(component=None, no_deploy=False):
             )
             continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
         total_tests += len(test_configurations)
 
     # Use progress bar locally, detailed logging in CI
@@ -2151,7 +2155,9 @@ def load_test_cases():
             )
             continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
 
         # Create a mapping of test_id to test configuration
         test_config_map = {str(config["id"]): config for config in test_configurations}
@@ -2231,7 +2237,9 @@ def test_extension_components(test_case):
     elif test_case["test_type"] == "results":
         # Test results match expected
         with open(test_case["test_filename"], "r") as f:
-            expected = json.loads(substitute_vars(f.read()))
+            expected = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
 
         for output_name, test_result_df in test_case["outputs"]["full"].items():
             output = dataframe_to_dict(test_result_df)
@@ -2390,7 +2398,9 @@ def capture(component):
             )
             continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
         total_tests += len(test_configurations)
 
     # Run tests with progress bar
@@ -2408,7 +2418,9 @@ def capture(component):
         # Load test configuration to get test_sorting parameter
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
 
         # Create a mapping of test_id to test configuration
         test_config_map = {str(config["id"]): config for config in test_configurations}
