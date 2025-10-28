@@ -2156,7 +2156,7 @@ def load_test_cases():
             continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(
-                substitute_vars(f.read(), _metadata_cache["provider"])
+                substitute_vars(f.read(), metadata_cache["provider"])
             )
 
         # Create a mapping of test_id to test configuration
@@ -2192,6 +2192,7 @@ def load_test_cases():
                     "test_id": test_id,
                     "outputs": outputs,
                     "test_sorting": test_sorting,
+                    "provider": metadata_cache["provider"],
                     "test_name": f"schema_{component['name']}_{test_id}",
                 }
             )
@@ -2206,6 +2207,7 @@ def load_test_cases():
                         "outputs": outputs,
                         "test_filename": test_filename,
                         "test_sorting": test_sorting,
+                        "provider": metadata_cache["provider"],
                         "test_name": f"results_{component['name']}_{test_id}__{'_'.join(output_names)}",
                     }
                 )
@@ -2238,7 +2240,7 @@ def test_extension_components(test_case):
         # Test results match expected
         with open(test_case["test_filename"], "r") as f:
             expected = json.loads(
-                substitute_vars(f.read(), _metadata_cache["provider"])
+                substitute_vars(f.read(), test_case["provider"])
             )
 
         for output_name, test_result_df in test_case["outputs"]["full"].items():
@@ -2399,7 +2401,7 @@ def capture(component):
             continue
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(
-                substitute_vars(f.read(), _metadata_cache["provider"])
+                substitute_vars(f.read(), metadata["provider"])
             )
         total_tests += len(test_configurations)
 
@@ -2419,7 +2421,7 @@ def capture(component):
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
             test_configurations = json.loads(
-                substitute_vars(f.read(), _metadata_cache["provider"])
+                substitute_vars(f.read(), metadata["provider"])
             )
 
         # Create a mapping of test_id to test configuration
