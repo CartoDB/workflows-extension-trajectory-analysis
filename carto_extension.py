@@ -13,17 +13,17 @@ import zipfile
 from pathlib import Path
 from sys import argv
 from textwrap import dedent
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 import pytest
 import snowflake.connector
+import oracledb
 import toml
 from dotenv import dotenv_values, load_dotenv
 from google.cloud import bigquery
-from pytest_unordered import unordered
 from shapely import wkt
 from shapely.geometry import shape
 from shapely.wkt import dumps
@@ -32,6 +32,8 @@ from tqdm import tqdm
 WORKFLOWS_TEMP_SCHEMA = "WORKFLOWS_TEMP"
 EXTENSIONS_TABLENAME = "WORKFLOWS_EXTENSIONS"
 WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
+FUNCTION_PREFIX = "__func_"
+STORED_PROCEDURE_PREFIX = "__stproc_"
 
 # Initialize verbose flag
 verbose = False
@@ -128,9 +130,12 @@ load_dotenv()
 
 bq_workflows_temp = f"`{os.getenv('BQ_TEST_PROJECT')}.{os.getenv('BQ_TEST_DATASET')}`"
 sf_workflows_temp = f"{os.getenv('SF_TEST_DATABASE')}.{os.getenv('SF_TEST_SCHEMA')}"
+or_workflows_temp = os.getenv("OR_TEST_SCHEMA", "CARTO_AT")
 
 sf_client_instance = None
 bq_client_instance = None
+or_client_instance = None
+or_wallet_temp_dir = None
 
 
 def bq_client():
@@ -157,6 +162,44 @@ def sf_client():
         except Exception as e:
             raise Exception(f"Error connecting to SnowFlake: {e}")
     return sf_client_instance
+
+
+def or_client():
+    global or_client_instance, or_wallet_temp_dir
+    if or_client_instance is None:
+        try:
+            import tempfile
+            import atexit
+            import shutil
+
+            # Handle wallet if configured
+            wallet_dir = None
+            wallet_location = os.getenv("OR_WALLET_LOCATION")
+            if wallet_location and wallet_location.endswith(".zip"):
+                wallet_dir = tempfile.mkdtemp(prefix="oracle_wallet_")
+                or_wallet_temp_dir = wallet_dir
+                # Register cleanup function
+                atexit.register(
+                    lambda: shutil.rmtree(wallet_dir, ignore_errors=True)
+                    if os.path.exists(wallet_dir)
+                    else None
+                )
+                with zipfile.ZipFile(wallet_location, "r") as z:
+                    z.extractall(wallet_dir)
+            elif wallet_location:
+                wallet_dir = wallet_location
+
+            or_client_instance = oracledb.connect(
+                user=os.getenv("OR_USER"),
+                password=os.getenv("OR_PASSWORD"),
+                dsn=os.getenv("OR_CONNECTION_STRING"),
+                config_dir=wallet_dir,
+                wallet_location=wallet_dir,
+                wallet_password=os.getenv("OR_WALLET_PASSWORD"),
+            )
+        except Exception as e:
+            raise Exception(f"Error connecting to Oracle: {e}")
+    return or_client_instance
 
 
 def add_namespace_to_component_names(metadata):
@@ -206,7 +249,11 @@ def create_metadata():
         code_hash = (
             int(hashlib.sha256(fullrun_code.encode("utf-8")).hexdigest(), 16) % 10**8
         )
-        component_metadata["procedureName"] = f"__proc_{component}_{code_hash}"
+        # Use PROC_ for Oracle, __proc_ for BigQuery/Snowflake
+        if metadata.get("provider") == "oracle":
+            component_metadata["procedureName"] = f"PROC_{component}_{code_hash}"
+        else:
+            component_metadata["procedureName"] = f"__proc_{component}_{code_hash}"
         icon_filename = component_metadata.get("icon")
         if icon_filename:
             icon_full_path = os.path.join(icon_folder, icon_filename)
@@ -216,14 +263,25 @@ def create_metadata():
     return metadata
 
 
-def discover_functions(functions_dir: Path = Path("functions/")) -> list[dict]:
+def discover_functions(
+    functions_dir: Path = Path("functions/"), extension_metadata: Optional[dict] = None
+) -> list[dict]:
     """Discover all function definitions in the functions directory.
 
+    Args:
+        functions_dir: Directory containing function definitions
+        extension_metadata: Extension metadata to validate functions against
+
     Returns:
-        List of function metadata dictionaries
+        List of function metadata dictionaries for functions listed in extension metadata
     """
     if not functions_dir.exists():
         return []
+
+    # Get the list of allowed function names from extension metadata
+    allowed_functions = set()
+    if extension_metadata and extension_metadata.get("functions"):
+        allowed_functions = set(extension_metadata["functions"])
 
     functions = []
     for function_folder in functions_dir.iterdir():
@@ -233,12 +291,37 @@ def discover_functions(functions_dir: Path = Path("functions/")) -> list[dict]:
                 try:
                     with open(metadata_file, "r") as f:
                         metadata = json.load(f)
+
+                    function_name = metadata.get("name")
+                    if not function_name:
+                        print(
+                            f"Warning: Function in {function_folder.name} has no name in metadata"
+                        )
+                        continue
+
+                    # Only include functions that are listed in extension metadata
+                    if allowed_functions and function_name not in allowed_functions:
+                        if verbose:
+                            print(
+                                f"Skipping function '{function_name}' - not listed in extension metadata"
+                            )
+                        continue
+
                     metadata["_path"] = function_folder
                     functions.append(metadata)
                 except Exception as e:
                     print(
                         f"Warning: Failed to load metadata for {function_folder.name}: {e}"
                     )
+
+    # Warn about functions listed in metadata but not found in directory
+    if allowed_functions:
+        discovered_function_names = {f["name"] for f in functions}
+        missing_functions = allowed_functions - discovered_function_names
+        for missing_func in missing_functions:
+            print(
+                f"Warning: Function '{missing_func}' is listed in extension metadata but not found in functions/ directory"
+            )
 
     return functions
 
@@ -334,16 +417,17 @@ def _extract_python_version(requires_python: str) -> str:
 
 
 def generate_function_sql_bigquery(function_metadata: dict) -> str:
-    """Generate BigQuery SQL code for a single function.
+    """Generate BigQuery SQL code for a single function or procedure.
 
     Args:
         function_metadata: Function metadata dictionary
 
     Returns:
-        SQL code to create the BigQuery function
+        SQL code to create the BigQuery function or procedure
     """
     func_name = function_metadata["name"].upper()
     func_path = function_metadata["_path"]
+    func_type = function_metadata.get("type", "function")
 
     # Build parameter list with BigQuery types
     params = []
@@ -361,13 +445,25 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
     # Infer function type from definition file extension
     sql_definition_file = func_path / "src" / "definition.sql"
     python_definition_file = func_path / "src" / "definition.py"
+    javascript_definition_file = func_path / "src" / "definition.js"
 
     if sql_definition_file.exists():
-        # SQL function for BigQuery
+        # SQL function or procedure for BigQuery
         with open(sql_definition_file, "r") as f:
             sql_body = f.read().strip()
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+        if func_type == "procedure":
+            # Create a stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            OPTIONS (
+                description="{function_metadata.get('description', '')}"
+            )
+            {sql_body}"""
+        else:
+            # Create a function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
                 {params_str}
             )
             RETURNS {return_type}
@@ -376,6 +472,14 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             );"""
 
     elif python_definition_file.exists():
+        # Check if this is a procedure - BigQuery doesn't support Python stored procedures
+        if func_type == "procedure":
+            raise NotImplementedError(
+                f"BigQuery Python stored procedures are not supported. "
+                f"Function '{func_name}' is marked as type 'procedure' but uses Python definition. "
+                f"BigQuery only supports Python UDFs, not stored procedures."
+            )
+
         # Python function for BigQuery
         with open(python_definition_file, "r") as f:
             python_code = f.read().strip()
@@ -397,7 +501,7 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
         options.append(f"runtime_version='python-{python_version}'")
         if packages:
             options.append(f"packages=[{packages_str}]")
-        
+
         # Add extra options from metadata if present
         extra_options = function_metadata.get("extra_options", {})
         for key, value in extra_options.items():
@@ -410,7 +514,7 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             else:
                 # Handle other types (numbers, booleans)
                 options.append(f"{key}={value}")
-        
+
         options_str = ",\n    ".join(options)
 
         return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
@@ -424,24 +528,73 @@ def generate_function_sql_bigquery(function_metadata: dict) -> str:
             AS r\"\"\"\n{clean_python_code}\n\"\"\";
             """
 
+    elif javascript_definition_file.exists():
+        # Check if this is a procedure - BigQuery doesn't support JavaScript stored procedures
+        if func_type == "procedure":
+            raise NotImplementedError(
+                f"BigQuery JavaScript stored procedures are not supported. "
+                f"Function '{func_name}' is marked as type 'procedure' but uses JavaScript definition. "
+                f"BigQuery only supports JavaScript UDFs, not stored procedures."
+            )
+
+        # JavaScript UDF for BigQuery
+        with open(javascript_definition_file, "r") as f:
+            javascript_code = f.read().strip()
+
+        # Add extra options from metadata if present
+        options = []
+        extra_options = function_metadata.get("extra_options", {})
+        for key, value in extra_options.items():
+            if isinstance(value, str):
+                options.append(f"{key}='{value}'")
+            elif isinstance(value, list):
+                # Handle list values like libraries
+                list_str = ",".join([f"'{item}'" for item in value])
+                options.append(f"{key}=[{list_str}]")
+            else:
+                # Handle other types (numbers, booleans)
+                options.append(f"{key}={value}")
+
+        options_str = ",\n    ".join(options) if options else ""
+        if options_str:
+            options_clause = ("\n" + " " * 12).join(
+                [
+                    "",
+                    "OPTIONS (",
+                    "   " + options_str,
+                    ")",
+                ]
+            )
+        else:
+            options_clause = ""
+
+        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.`{func_name}`(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE js{options_clause}
+            AS r\"\"\"\n{javascript_code}\n\"\"\";
+            """
+
     else:
         print(
-            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+            f"Warning: No definition file found for {func_name} (checked definition.sql, definition.py, and definition.js)"
         )
         return ""
 
 
 def generate_function_sql_snowflake(function_metadata: dict) -> str:
-    """Generate Snowflake SQL code for a single function.
+    """Generate Snowflake SQL code for a single function or procedure.
 
     Args:
         function_metadata: Function metadata dictionary
 
     Returns:
-        SQL code to create the Snowflake function
+        SQL code to create the Snowflake function or procedure
     """
     func_name = function_metadata["name"].upper()
     func_path = function_metadata["_path"]
+    func_type = function_metadata.get("type", "function")
 
     # Known Snowflake data types
     known_snowflake_types = {
@@ -507,13 +660,28 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
     # Infer function type from definition file extension
     sql_definition_file = func_path / "src" / "definition.sql"
     python_definition_file = func_path / "src" / "definition.py"
+    javascript_definition_file = func_path / "src" / "definition.js"
 
     if sql_definition_file.exists():
-        # SQL function for Snowflake
+        # SQL function or procedure for Snowflake
         with open(sql_definition_file, "r") as f:
             sql_body = f.read().strip()
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+        if func_type == "procedure":
+            # Create a stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE SQL
+            EXECUTE AS CALLER
+            AS
+            $$
+                {sql_body}
+            $$;"""
+        else:
+            # Create a function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
                 {params_str}
             )
             RETURNS {return_type}
@@ -523,7 +691,7 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             $$;"""
 
     elif python_definition_file.exists():
-        # Python function for Snowflake
+        # Python function or procedure for Snowflake
         with open(python_definition_file, "r") as f:
             python_code = f.read().strip()
 
@@ -537,10 +705,10 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             print(f"Error in function {func_name}: {e}")
             return ""
 
-        # Snowflake Python UDF format
+        # Snowflake Python UDF/stored procedure format
         packages_str = ",".join([f"'{pkg}'" for pkg in packages]) if packages else ""
         packages_clause = f"PACKAGES = ({packages_str})" if packages else ""
-        
+
         # Add extra options from metadata if present
         extra_options_clauses = []
         extra_options = function_metadata.get("extra_options", {})
@@ -554,11 +722,28 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             else:
                 # Handle other types (numbers, booleans)
                 extra_options_clauses.append(f"{key.upper()} = {value}")
-        
-        extra_options_str = "\n            ".join(extra_options_clauses)
-        extra_options_line = f"\n            {extra_options_str}" if extra_options_clauses else ""
 
-        return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+        extra_options_str = "\n            ".join(extra_options_clauses)
+        extra_options_line = (
+            f"\n            {extra_options_str}" if extra_options_clauses else ""
+        )
+
+        if func_type == "procedure":
+            # Create a Python stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE PYTHON
+            RUNTIME_VERSION = '{python_version}'
+            {packages_clause}{extra_options_line}
+            HANDLER = 'main'
+            AS
+            $$\n{clean_python_code}\n$$;
+            """
+        else:
+            # Create a Python function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
                 {params_str}
             )
             RETURNS {return_type}
@@ -570,23 +755,57 @@ def generate_function_sql_snowflake(function_metadata: dict) -> str:
             $$\n{clean_python_code}\n$$;
             """
 
+    elif javascript_definition_file.exists():
+        # JavaScript function or procedure for Snowflake
+        with open(javascript_definition_file, "r") as f:
+            javascript_code = f.read().strip()
+
+        if func_type == "procedure":
+            # Create a JavaScript stored procedure
+            return f"""CREATE OR REPLACE PROCEDURE @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE JAVASCRIPT
+            EXECUTE AS CALLER
+            AS
+            $$
+                {javascript_code}
+            $$;
+            """
+        else:
+            # Create a JavaScript function (default behavior)
+            return f"""CREATE OR REPLACE FUNCTION @@workflows_temp@@.{func_name}(
+                {params_str}
+            )
+            RETURNS {return_type}
+            LANGUAGE JAVASCRIPT
+            AS
+            $$
+                {javascript_code}
+            $$;
+            """
+
     else:
         print(
-            f"Warning: No definition file found for {func_name} (checked definition.sql and definition.py)"
+            f"Warning: No definition file found for {func_name} (checked definition.sql, definition.py, and definition.js)"
         )
         return ""
 
 
-def get_functions_code(provider: str = "bigquery") -> str:
+def get_functions_code(
+    provider: str = "bigquery", extension_metadata: Optional[dict] = None
+) -> str:
     """Generate code to declare all UDFs for the specified provider.
 
     Args:
         provider: Target provider ('bigquery' or 'snowflake')
+        extension_metadata: Extension metadata to validate functions against
 
     Returns:
         SQL code to create all functions
     """
-    functions = discover_functions()
+    functions = discover_functions(extension_metadata=extension_metadata)
     if not functions:
         return ""
 
@@ -596,6 +815,13 @@ def get_functions_code(provider: str = "bigquery") -> str:
             func_code = generate_function_sql_bigquery(function_metadata)
         elif provider == "snowflake":
             func_code = generate_function_sql_snowflake(function_metadata)
+        elif provider == "oracle":
+            raise NotImplementedError(
+                f"User-defined functions (UDFs) are not supported for Oracle. "
+                f"Oracle extensions only support SQL-based stored procedures. "
+                f"Please remove the 'functions' field from your extension metadata "
+                f"or change the provider to 'bigquery' or 'snowflake' to use UDFs."
+            )
         else:
             raise ValueError(f"Unsupported provider: {provider}")
 
@@ -622,8 +848,9 @@ def get_procedure_code_bq(component):
     with open(dryrun_file, "r") as f:
         dryrun_code = f.read().replace("\n", "\n" + " " * 16)
 
-    newline_and_tab = ",\n" + " " * 12
-    params_string = newline_and_tab.join(
+    comma_newline_and_tab = ",\n" + " " * 12
+    newline_and_tab = "\n" + " " * 12
+    params_string = comma_newline_and_tab.join(
         [
             f"{p['name']} {_param_type_to_bq_type(p['type'])[0]}"
             for p in component["inputs"] + component["outputs"]
@@ -665,8 +892,18 @@ def get_procedure_code_bq(component):
 
 def create_sql_code_bq(metadata):
     functions_code = ""
+    function_names = []
     if metadata.get("functions"):
-        functions_code = get_functions_code("bigquery")
+        functions_code = get_functions_code("bigquery", extension_metadata=metadata)
+        # Get function names for tracking with appropriate prefixes
+        functions = discover_functions(extension_metadata=metadata)
+        function_names = []
+        for func in functions:
+            func_type = func.get("type", "function")
+            if func_type == "procedure":
+                function_names.append(f"{STORED_PROCEDURE_PREFIX}{func['name'].upper()}")
+            else:
+                function_names.append(f"{FUNCTION_PREFIX}{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -687,7 +924,7 @@ def create_sql_code_bq(metadata):
             procedures STRING
         );
 
-        -- remove procedures from previous installations
+        -- remove procedures and functions from previous installations
 
         SET procedures = (
             SELECT procedures
@@ -701,7 +938,15 @@ def create_sql_code_bq(metadata):
                 IF i > ARRAY_LENGTH(proceduresArray) THEN
                     LEAVE;
                 END IF;
-                EXECUTE IMMEDIATE 'DROP PROCEDURE {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
+                -- Check if this is custom function or procedure based on prefix
+                IF STARTS_WITH(proceduresArray[ORDINAL(i)], '{FUNCTION_PREFIX}') THEN
+                    EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], {len(FUNCTION_PREFIX) + 1});
+                ELSEIF STARTS_WITH(proceduresArray[ORDINAL(i)], '{STORED_PROCEDURE_PREFIX}') THEN
+                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], {len(STORED_PROCEDURE_PREFIX) + 1});
+                ELSE
+                    -- Components (no prefix) 
+                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
+                END IF;
             END LOOP;
         END IF;
 
@@ -717,7 +962,7 @@ def create_sql_code_bq(metadata):
         -- add to extensions table
 
         INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures)}');"""
+        VALUES ('{metadata["name"]}', '''{metadata_string}''', '{','.join(procedures + function_names)}');"""
     )
 
     return dedent(code)
@@ -736,8 +981,9 @@ def get_procedure_code_sf(component):
     )
     with open(dryrun_file, "r") as f:
         dryrun_code = f.read().replace("\n", "\n" + " " * 16).replace("'", "\\'")
-    newline_and_tab = ",\n" + " " * 12
-    params_string = newline_and_tab.join(
+    comma_newline_and_tab = ",\n" + " " * 12
+    newline_and_tab = "\n" + " " * 12
+    params_string = comma_newline_and_tab.join(
         [
             f"{p['name']} {_param_type_to_sf_type(p['type'])[0]}"
             for p in component["inputs"] + component["outputs"]
@@ -747,7 +993,7 @@ def get_procedure_code_sf(component):
     carto_env_vars = component["cartoEnvVars"] if "cartoEnvVars" in component else []
     env_vars = newline_and_tab.join(
         [
-            f"DECLARE {v} VARCHAR DEFAULT JSON_EXTRACT_PATH_TEXT(env_vars, '{v}');"
+            f"{v} VARCHAR DEFAULT JSON_EXTRACT_PATH_TEXT(env_vars, \\'{v}\\');"
             for v in carto_env_vars
         ]
     )
@@ -762,8 +1008,9 @@ def get_procedure_code_sf(component):
         LANGUAGE SQL
         EXECUTE AS CALLER
         AS '
-        BEGIN
+        {'DECLARE' if env_vars else ''}
             {env_vars}
+        BEGIN
             IF ( :dry_run ) THEN
                 DECLARE
                     _workflows_temp VARCHAR := \\'@@workflows_temp@@\\';
@@ -789,10 +1036,94 @@ def get_procedure_code_sf(component):
     return procedure_code
 
 
+def _strip_sql_comments(sql_code):
+    """Remove single-line and multi-line comments from SQL code."""
+    # Remove multi-line comments /* ... */
+    sql_code = re.sub(r"/\*.*?\*/", "", sql_code, flags=re.DOTALL)
+    # Remove single-line comments starting with --
+    sql_code = re.sub(r"--[^\n]*", "", sql_code)
+    # Remove empty lines
+    lines = [line for line in sql_code.split("\n") if line.strip()]
+    return "\n".join(lines)
+
+
+def get_procedure_code_oracle(component):
+    current_folder = os.path.dirname(os.path.abspath(__file__))
+    components_folder = os.path.join(current_folder, "components")
+    fullrun_file = os.path.join(
+        components_folder, component["name"], "src", "fullrun.sql"
+    )
+    with open(fullrun_file, "r") as f:
+        fullrun_code = _strip_sql_comments(f.read()).replace("\n", "\n" + " " * 12)
+    dryrun_file = os.path.join(
+        components_folder, component["name"], "src", "dryrun.sql"
+    )
+    with open(dryrun_file, "r") as f:
+        dryrun_code = _strip_sql_comments(f.read()).replace("\n", "\n" + " " * 12)
+
+    comma_newline_and_tab = ",\n" + " " * 8
+    newline_and_tab = "\n" + " " * 8
+    # For procedure parameters, use the second type (without size) from the type mapping
+    params_string = comma_newline_and_tab.join(
+        [
+            f"{p['name']} IN {_param_type_to_oracle_type(p['type'])[1]}"
+            for p in component["inputs"]
+        ]
+        + [
+            f"{p['name']} IN OUT {_param_type_to_oracle_type(p['type'])[1]}"
+            for p in component["outputs"]
+        ]
+    )
+
+    carto_env_vars = component["cartoEnvVars"] if "cartoEnvVars" in component else []
+    env_vars = (
+        newline_and_tab
+        + newline_and_tab.join(
+            [f"{v} VARCHAR2 := JSON_VALUE(env_vars, '$.{v}');" for v in carto_env_vars]
+        )
+        if carto_env_vars
+        else ""
+    )
+
+    procedure_code = dedent(
+        f"""\
+        CREATE OR REPLACE PROCEDURE {WORKFLOWS_TEMP_PLACEHOLDER}.{component["procedureName"]}(
+            {params_string},
+            dry_run IN NUMBER,
+            env_vars IN VARCHAR2
+        )
+        IS
+            {env_vars}
+        BEGIN
+            IF (dry_run = 1) THEN
+            {dryrun_code}
+            ELSE
+            {fullrun_code}
+            END IF;
+        END {component["procedureName"]};
+        """
+    )
+
+    procedure_code = "\n".join(
+        [line for line in procedure_code.split("\n") if line.strip()]
+    )
+    return procedure_code
+
+
 def create_sql_code_sf(metadata):
     functions_code = ""
+    function_names = []
     if metadata.get("functions"):
-        functions_code = get_functions_code("snowflake")
+        functions_code = get_functions_code("snowflake", extension_metadata=metadata)
+        # Get function names for tracking with appropriate prefixes
+        functions = discover_functions(extension_metadata=metadata)
+        function_names = []
+        for func in functions:
+            func_type = func.get("type", "function")
+            if func_type == "procedure":
+                function_names.append(f"{STORED_PROCEDURE_PREFIX}{func['name'].upper()}")
+            else:
+                function_names.append(f"{FUNCTION_PREFIX}{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -814,7 +1145,7 @@ def create_sql_code_sf(metadata):
                 procedures STRING
             );
 
-            -- remove procedures from previous installations
+            -- remove procedures and functions from previous installations
 
             procedures := (
                 SELECT procedures
@@ -822,13 +1153,44 @@ def create_sql_code_sf(metadata):
                 WHERE name = '{metadata["name"]}'
             );
 
-            BEGIN
-                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.'
-                    || REPLACE(:procedures, ';', ';DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.');
-            EXCEPTION
-                WHEN OTHER THEN
-                    NULL;
-            END;
+            -- Parse the procedures string to handle both procedures and functions
+            IF (procedures IS NOT NULL) THEN
+                DECLARE
+                    proc_array ARRAY;
+                    proc_item STRING;
+                    i INTEGER DEFAULT 0;
+                BEGIN
+                    proc_array := SPLIT(procedures, ';');
+                    WHILE (i < ARRAY_SIZE(proc_array)) DO
+                        proc_item := proc_array[i];
+                        -- Check if this is a function or procedure based on prefix
+                        IF (STARTSWITH(proc_item, '{FUNCTION_PREFIX}')) THEN
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, {len(FUNCTION_PREFIX) + 1});
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
+                        ELSEIF (STARTSWITH(proc_item, '{STORED_PROCEDURE_PREFIX}')) THEN
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, {len(STORED_PROCEDURE_PREFIX) + 1});
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
+                        ELSE
+                            -- Legacy behavior for components (no prefix)
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proc_item;
+                            EXCEPTION
+                                WHEN OTHER THEN
+                                    NULL;
+                            END;
+                        END IF;
+                        i := i + 1;
+                    END WHILE;
+                END;
+            END IF;
 
             DELETE FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME}
             WHERE name = '{metadata["name"]}';
@@ -842,8 +1204,86 @@ def create_sql_code_sf(metadata):
             -- add to extensions table
 
             INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string}');
+            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string}{(";" + ";".join(function_names)) if function_names else ""}');
         END;"""
+    )
+
+    return code
+
+
+def create_sql_code_oracle(metadata):
+    procedures_code = ""
+    for component in metadata["components"]:
+        procedure_code = get_procedure_code_oracle(component)
+        procedures_code += "\n" + procedure_code
+
+    procedures = [c["procedureName"] for c in metadata["components"]]
+    metadata_string = json.dumps(metadata).replace("'", "''")
+    procedures_string = ";".join(procedures)
+
+    code = dedent(
+        f"""BEGIN
+            -- Setup extension management table
+            DECLARE
+                v_procedures VARCHAR2(4000);
+                v_proc_name VARCHAR2(200);
+                v_pos NUMBER;
+                v_start NUMBER := 1;
+            BEGIN
+                -- Create table if not exists
+                BEGIN
+                    EXECUTE IMMEDIATE 'CREATE TABLE {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (
+                        name VARCHAR2(200),
+                        metadata CLOB,
+                        procedures VARCHAR2(4000)
+                    )';
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        IF SQLCODE != -955 THEN -- Table already exists
+                            RAISE;
+                        END IF;
+                END;
+
+                -- Get procedures from previous installations
+                BEGIN
+                    EXECUTE IMMEDIATE 'SELECT procedures FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} WHERE name = ''{metadata["name"]}''' INTO v_procedures;
+
+                    -- Drop old procedures
+                    LOOP
+                        v_pos := INSTR(v_procedures, ';', v_start);
+                        IF v_pos = 0 THEN
+                            v_proc_name := SUBSTR(v_procedures, v_start);
+                        ELSE
+                            v_proc_name := SUBSTR(v_procedures, v_start, v_pos - v_start);
+                        END IF;
+
+                        IF v_proc_name IS NOT NULL THEN
+                            BEGIN
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE {WORKFLOWS_TEMP_PLACEHOLDER}.' || v_proc_name;
+                            EXCEPTION
+                                WHEN OTHERS THEN NULL;
+                            END;
+                        END IF;
+
+                        EXIT WHEN v_pos = 0;
+                        v_start := v_pos + 1;
+                    END LOOP;
+                EXCEPTION
+                    WHEN NO_DATA_FOUND THEN
+                        NULL;
+                END;
+
+                -- Delete old extension metadata
+                EXECUTE IMMEDIATE 'DELETE FROM {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} WHERE name = ''{metadata["name"]}''';
+
+                -- Insert new extension metadata
+                EXECUTE IMMEDIATE 'INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures) VALUES (''{metadata["name"]}'', ''{metadata_string}'', ''{procedures_string}'')';
+
+                COMMIT;
+            END;
+        END;|||
+        {procedures_code}
+        """
     )
 
     return code
@@ -851,10 +1291,14 @@ def create_sql_code_sf(metadata):
 
 def deploy_bq(metadata, destination):
     print("Deploying extension to BigQuery...")
-    destination = f"`{destination}`" if destination else bq_workflows_temp
+    if not destination:
+        destination = bq_workflows_temp
+    elif not (destination.startswith("`") and destination.endswith("`")):
+        destination = f"`{destination}`"
+
     sql_code = create_sql_code_bq(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
-    sql_code = substitute_vars(sql_code)
+    sql_code = substitute_vars(sql_code, provider="bigquery")
     if verbose:
         print(sql_code)
     query_job = bq_client().query(sql_code)
@@ -867,7 +1311,7 @@ def deploy_sf(metadata, destination):
     destination = destination or sf_workflows_temp
     sql_code = create_sql_code_sf(metadata)
     sql_code = sql_code.replace(WORKFLOWS_TEMP_PLACEHOLDER, destination)
-    sql_code = substitute_vars(sql_code)
+    sql_code = substitute_vars(sql_code, provider="snowflake")
 
     if verbose:
         print(sql_code)
@@ -876,22 +1320,103 @@ def deploy_sf(metadata, destination):
     print("Extension correctly deployed to SnowFlake.")
 
 
+def deploy_oracle(metadata, destination):
+    print("Deploying extension to Oracle...")
+    destination = destination or or_workflows_temp
+
+    cursor = or_client().cursor()
+    try:
+        # Create extensions table if it doesn't exist
+        create_table_sql = f"""
+        BEGIN
+            EXECUTE IMMEDIATE 'CREATE TABLE {destination}.{EXTENSIONS_TABLENAME} (
+                name VARCHAR2(200),
+                metadata CLOB,
+                procedures VARCHAR2(4000)
+            )';
+        EXCEPTION
+            WHEN OTHERS THEN
+                IF SQLCODE != -955 THEN
+                    RAISE;
+                END IF;
+        END;
+        """
+        cursor.execute(create_table_sql)
+
+        # Delete old extension if exists
+        cursor.execute(
+            f"DELETE FROM {destination}.{EXTENSIONS_TABLENAME} WHERE name = :name",
+            {"name": metadata["name"]},
+        )
+
+        # Insert new extension metadata
+        metadata_string = json.dumps(metadata)
+        procedures_string = ";".join(
+            [c["procedureName"] for c in metadata["components"]]
+        )
+        cursor.execute(
+            f"INSERT INTO {destination}.{EXTENSIONS_TABLENAME} (name, metadata, procedures) VALUES (:name, :metadata, :procedures)",
+            {
+                "name": metadata["name"],
+                "metadata": metadata_string,
+                "procedures": procedures_string,
+            },
+        )
+
+        # Create procedures
+        for component in metadata["components"]:
+            procedure_code = get_procedure_code_oracle(component)
+            procedure_code = procedure_code.replace(
+                WORKFLOWS_TEMP_PLACEHOLDER, destination
+            )
+            procedure_code = substitute_vars(procedure_code, provider="oracle")
+            if verbose:
+                print(f"\nCreating procedure: {component['procedureName']}")
+                print(procedure_code)
+            cursor.execute(procedure_code)
+
+        or_client().commit()
+        print("Extension correctly deployed to Oracle.")
+    except Exception as e:
+        or_client().rollback()
+        raise e
+    finally:
+        cursor.close()
+
+
 def deploy(destination):
     metadata = create_metadata()
+
     if metadata["provider"] == "bigquery":
-        deploy_bq(metadata, destination)
+        deploy_bq(metadata, destination or bq_workflows_temp)
+    elif metadata["provider"] == "snowflake":
+        deploy_sf(metadata, destination or sf_workflows_temp)
+    elif metadata["provider"] == "oracle":
+        deploy_oracle(metadata, destination or or_workflows_temp)
     else:
-        deploy_sf(metadata, destination)
+        raise ValueError(f"Unknown provider: {metadata['provider']}")
 
 
-def substitute_vars(text: str) -> str:
+def substitute_vars(text: str, provider: str) -> str:
     """Substitute all variables in a string with their values from the environment.
 
     For a given string, all the variables using the syntax `@@variable_name@@`
     will be interpolated with their values from the corresponding env vars.
     It will raise a ValueError if any variable name is not present in the
     environment.
+
+    Args:
+        text: The text to substitute variables in
+        provider: The provider type ('bigquery', 'snowflake', or 'oracle') to auto-infer workflows_temp
     """
+    # Set workflows_temp if not already set
+    if not os.getenv("WORKFLOWS_TEMP") and provider == "bigquery":
+        os.environ["WORKFLOWS_TEMP"] = bq_workflows_temp.strip("`")
+    elif not os.getenv("WORKFLOWS_TEMP") and provider == "snowflake":
+        os.environ["WORKFLOWS_TEMP"] = sf_workflows_temp
+    elif not os.getenv("WORKFLOWS_TEMP") and provider == "oracle":
+        os.environ["WORKFLOWS_TEMP"] = or_workflows_temp
+
     pattern = r"@@([a-zA-Z0-9_]+)@@"
 
     for variable in re.findall(pattern, text, re.MULTILINE):
@@ -973,7 +1498,13 @@ def _upload_test_table_bq(filename, component):
             schema.append(infer_schema_field_bq(key, value))
 
     dataset_id = os.getenv("BQ_TEST_DATASET")
-    table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+    if component.get("_is_setup_table", False):
+        # For setup tables, use direct naming
+        table_id = component["name"]
+    else:
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
 
     dataset_ref = bq_client().dataset(dataset_id)
     table_ref = dataset_ref.table(table_id)
@@ -986,7 +1517,7 @@ def _upload_test_table_bq(filename, component):
     with open(filename, "rb") as source_file:
         processed = io.BytesIO()
         for line in source_file:
-            processed_line = substitute_vars(line.decode("utf-8"))
+            processed_line = substitute_vars(line.decode("utf-8"), "bigquery")
             processed.write(processed_line.encode("utf-8"))
 
         processed.seek(0)
@@ -1040,7 +1571,7 @@ def _upload_test_table_sf(filename, component):
         data = []
         for line in f.readlines():
             if line.strip():
-                data.append(json.loads(substitute_vars(line)))
+                data.append(json.loads(substitute_vars(line, "snowflake")))
     if os.path.exists(filename.replace(".ndjson", ".schema")):
         with open(filename.replace(".ndjson", ".schema")) as f:
             data_types = json.load(f)
@@ -1049,7 +1580,13 @@ def _upload_test_table_sf(filename, component):
             key: infer_schema_field_sf(key, value) for key, value in data[0].items()
         }
 
-    table_id = f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+    if component.get("_is_setup_table", False):
+        # For setup tables, use direct naming
+        table_id = component["name"]
+    else:
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
     create_table_sql = f"CREATE OR REPLACE TABLE {sf_workflows_temp}.{table_id} ("
     for key, value in data[0].items():
         create_table_sql += f"{key} {data_types[key]}, "
@@ -1129,13 +1666,95 @@ def _upload_test_table_sf(filename, component):
     cursor.close()
 
 
+def _upload_test_table_oracle(filename, component):
+    with open(filename) as f:
+        data = []
+        for l in f.readlines():
+            if l.strip():
+                data.append(json.loads(substitute_vars(l, "oracle")))
+
+    if os.path.exists(filename.replace(".ndjson", ".schema")):
+        with open(filename.replace(".ndjson", ".schema")) as f:
+            data_types = json.load(f)
+    else:
+        data_types = {
+            key: infer_schema_field_sf(key, value)  # Reuse SF type inference for Oracle
+            for key, value in data[0].items()
+        }
+        # Convert SF types to Oracle types
+        type_mapping = {
+            "NUMBER": "NUMBER",
+            "FLOAT": "NUMBER",
+            "VARCHAR": "VARCHAR2(4000)",
+            "DATE": "DATE",
+            "TIMESTAMP": "TIMESTAMP",
+            "DATETIME": "TIMESTAMP",
+            "GEOGRAPHY": "SDO_GEOMETRY",
+        }
+        data_types = {
+            k: type_mapping.get(v, "VARCHAR2(4000)") for k, v in data_types.items()
+        }
+
+    if component.get("_is_setup_table", False):
+        # For setup tables, use direct naming
+        table_id = component["name"]
+    else:
+        table_id = (
+            f"_test_{component['name']}_{os.path.basename(filename).split('.')[0]}"
+        )
+
+    # Create table
+    create_table_sql = f"CREATE TABLE {or_workflows_temp}.{table_id} ("
+    for key, dtype in data_types.items():
+        create_table_sql += f"{key} {dtype}, "
+    create_table_sql = create_table_sql.rstrip(", ") + ")"
+
+    cursor = or_client().cursor()
+    try:
+        # Drop table if exists
+        cursor.execute(
+            f"BEGIN EXECUTE IMMEDIATE 'DROP TABLE {or_workflows_temp}.{table_id}'; EXCEPTION WHEN OTHERS THEN NULL; END;"
+        )
+        cursor.execute(create_table_sql)
+
+        # Insert data
+        for row in data:
+            columns = list(row.keys())
+            values_list = []
+            for key, value in row.items():
+                if value is None:
+                    values_list.append("NULL")
+                elif data_types[key].startswith("NUMBER"):
+                    values_list.append(str(value))
+                else:
+                    # Escape single quotes
+                    escaped_value = str(value).replace("'", "''")
+                    values_list.append(f"'{escaped_value}'")
+
+            values_string = ", ".join(values_list)
+            insert_sql = f"INSERT INTO {or_workflows_temp}.{table_id} ({', '.join(columns)}) VALUES ({values_string})"
+            cursor.execute(insert_sql)
+
+        or_client().commit()
+    except Exception as e:
+        or_client().rollback()
+        raise e
+    finally:
+        cursor.close()
+
+
 def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=False):
     if metadata["provider"] == "bigquery":
         upload_function = _upload_test_table_bq
         workflows_temp = bq_workflows_temp
-    else:
+    elif metadata["provider"] == "snowflake":
         upload_function = _upload_test_table_sf
         workflows_temp = sf_workflows_temp
+    elif metadata["provider"] == "oracle":
+        upload_function = _upload_test_table_oracle
+        workflows_temp = or_workflows_temp
+    else:
+        raise ValueError(f"Unknown provider: {metadata['provider']}")
     results = {}
     if component:
         components = [c for c in metadata["components"] if c["name"] == component]
@@ -1149,29 +1768,62 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
             print(f"Processing component: {component['name']}")
         component_folder = os.path.join(components_folder, component["name"])
         test_folder = os.path.join(component_folder, "test")
-        # upload test tables
-        for filename in os.listdir(test_folder):
-            if filename.endswith(".ndjson"):
-                upload_function(os.path.join(test_folder, filename), component)
+
         # run tests
         test_configuration_file = os.path.join(test_folder, "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{component['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), metadata["provider"])
+            )
 
-        tables = {}
+        # Collect setup tables from all test configurations
+        setup_tables_map = {}  # filename -> table_name
+        for test_configuration in test_configurations:
+            setup_tables = test_configuration.get("setup_tables", {})
+            for table_name, filename in setup_tables.items():
+                if filename not in setup_tables_map:
+                    setup_tables_map[filename] = table_name
+
+        # Upload all test tables (setup tables with explicit naming, regular tables with prefix)
+        for filename in os.listdir(test_folder):
+            if filename.endswith(".ndjson"):
+                ndjson_full_path = os.path.join(test_folder, filename)
+                filename_without_ext = filename.replace(".ndjson", "")
+
+                if filename_without_ext in setup_tables_map:
+                    # This is a setup table - upload with explicit naming
+                    table_name = setup_tables_map[filename_without_ext]
+                    setup_component = {"name": table_name, "_is_setup_table": True}
+                    upload_function(ndjson_full_path, setup_component)
+                else:
+                    # This is a regular test table - upload with prefix
+                    upload_function(ndjson_full_path, component)
+
         component_results = {}
         for test_configuration in test_configurations:
+            setup_tables = test_configuration.get("setup_tables", {})
+
             param_values = []
             test_id = test_configuration["id"]
             skip_outputs = test_configuration.get("skip_output", [])
             component_results[test_id] = {}
+            tables = {}
             for inputparam in component["inputs"]:
                 param_value = test_configuration["inputs"][inputparam["name"]]
                 if param_value is None:
                     param_values.append(None)
                 else:
                     if inputparam["type"] == "Table":
-                        tablename = f"'{workflows_temp}._test_{component['name']}_{param_value}'"
+                        # Check if this is a setup table (use clean name) or regular test table
+                        if param_value in setup_tables:
+                            tablename = f"'{workflows_temp}.{param_value}'"
+                        else:
+                            tablename = f"'{workflows_temp}._test_{component['name']}_{param_value}'"
                         param_values.append(tablename)
                     elif inputparam["type"] in [
                         "String",
@@ -1190,7 +1842,8 @@ def _get_test_results(metadata, component, progress_bar=None, use_ci_logging=Fal
                 param_values.append(f"'{tablename}'")
                 tables[outputparam["name"]] = tablename
 
-            env_vars = json.dumps(test_configuration.get("env_vars", None))
+            env_vars_value = test_configuration.get("env_vars", None)
+            env_vars = f"'{json.dumps(env_vars_value)}'" if env_vars_value else None
 
             dry_run_params = param_values.copy() + [True, env_vars]
             dry_run_query = _build_query(
@@ -1301,8 +1954,22 @@ def _run_query(
                             pass
 
             results[output["name"]] = df
+    elif provider == "oracle":
+        cur = or_client().cursor()
+        # Oracle requires a single query per statement
+        for statement in statements:
+            cur.execute(statement)
+
+        for output in component["outputs"]:
+            query = f"SELECT * FROM {tables[output['name']]}"
+            cur = or_client().cursor()
+            cur.execute(query)
+            # Fetch results and convert to DataFrame
+            columns = [col[0].lower() for col in cur.description]
+            rows = cur.fetchall()
+            results[output["name"]] = pd.DataFrame(rows, columns=columns)
     else:
-        raise NotImplementedError(f"Provider '{provider}' is not supported")
+        raise ValueError(f"Unknown provider: {provider}")
 
     return results
 
@@ -1320,6 +1987,10 @@ def test(component, no_deploy=False):
 
     # Set environment variable so pytest can find the data file
     os.environ["PYTEST_TEST_DATA_FILE"] = temp_file_path
+
+    # Set component filter for pytest
+    if component:
+        os.environ["PYTEST_COMPONENT_FILTER"] = component
 
     try:
         # Step 2: Start pytest session
@@ -1359,6 +2030,8 @@ def test(component, no_deploy=False):
             os.unlink(temp_file_path)
         if "PYTEST_TEST_DATA_FILE" in os.environ:
             del os.environ["PYTEST_TEST_DATA_FILE"]
+        if "PYTEST_COMPONENT_FILTER" in os.environ:
+            del os.environ["PYTEST_COMPONENT_FILTER"]
 
 
 def _build_pytest_args_from_user_flags():
@@ -1405,18 +2078,29 @@ def prepare_test_data(component=None, no_deploy=False):
     if not no_deploy:
         deploy(None)
 
-    # Calculate total number of tests to run for progress bar
-    total_tests = 0
+    # Filter components first, then calculate total number of tests for progress bar
+    components_to_test = _metadata_cache["components"]
+    if component:
+        components_to_test = [
+            c for c in _metadata_cache["components"] if c["name"] == component
+        ]
+
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
 
-    for comp in _metadata_cache["components"]:
-        if component and comp["name"] != component:
-            continue
+    total_tests = 0
+    for comp in components_to_test:
         component_folder = os.path.join(components_folder, comp["name"])
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{comp['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), _metadata_cache["provider"])
+            )
         total_tests += len(test_configurations)
 
     # Use progress bar locally, detailed logging in CI
@@ -1440,6 +2124,8 @@ def load_test_cases():
     """Generate test cases from pre-collected data."""
     # Load test data from file if available
     test_data_file = os.environ.get("PYTEST_TEST_DATA_FILE")
+    component_filter = os.environ.get("PYTEST_COMPONENT_FILTER")
+
     if test_data_file and os.path.exists(test_data_file):
         with open(test_data_file, "rb") as f:
             data = pickle.load(f)
@@ -1458,12 +2144,22 @@ def load_test_cases():
     components_folder = os.path.join(current_folder, "components")
 
     for component in metadata_cache["components"]:
+        # Apply component filter if specified
+        if component_filter and component["name"] != component_filter:
+            continue
         component_folder = os.path.join(components_folder, component["name"])
 
         # Load test configuration to get test_sorting parameter
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{component['name']}' at {test_configuration_file}"
+            )
+            continue
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), metadata_cache["provider"])
+            )
 
         # Create a mapping of test_id to test configuration
         test_config_map = {str(config["id"]): config for config in test_configurations}
@@ -1471,16 +2167,20 @@ def load_test_cases():
         for test_id, outputs in test_results_cache[component["name"]].items():
             test_folder = os.path.join(component_folder, "test", "fixtures")
             test_filename = os.path.join(test_folder, f"{test_id}.json")
-            skip_outputs = outputs['skip_output']
+            skip_outputs = outputs["skip_output"]
 
             # Results test case (skip if test_id starts with "skip_", skip output if table in skip_outputs)
             output_names = []
-            for mode in ['dry', 'full']:
+            for mode in ["dry", "full"]:
                 if mode in outputs:
-                    outputs[mode] = {k: v for k, v in outputs[mode].items() if k not in skip_outputs}
+                    outputs[mode] = {
+                        k: v for k, v in outputs[mode].items() if k not in skip_outputs
+                    }
                     output_names.append(list(outputs[mode].keys()))
-            output_names = list(set(item for sublist in output_names for item in sublist))
-            outputs.pop('skip_output', None)
+            output_names = list(
+                set(item for sublist in output_names for item in sublist)
+            )
+            outputs.pop("skip_output", None)
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1494,6 +2194,7 @@ def load_test_cases():
                     "test_id": test_id,
                     "outputs": outputs,
                     "test_sorting": test_sorting,
+                    "provider": metadata_cache["provider"],
                     "test_name": f"schema_{component['name']}_{test_id}",
                 }
             )
@@ -1508,6 +2209,7 @@ def load_test_cases():
                         "outputs": outputs,
                         "test_filename": test_filename,
                         "test_sorting": test_sorting,
+                        "provider": metadata_cache["provider"],
                         "test_name": f"results_{component['name']}_{test_id}__{'_'.join(output_names)}",
                     }
                 )
@@ -1524,6 +2226,8 @@ def pytest_generate_tests(metafunc):
 
 def test_extension_components(test_case):
     """Parametrized test function that runs all component tests."""
+    from pytest_unordered import unordered
+
     if test_case["test_type"] == "schema":
         # Test schema consistency
         for output_name, dry_output in test_case["outputs"]["dry"].items():
@@ -1537,7 +2241,9 @@ def test_extension_components(test_case):
     elif test_case["test_type"] == "results":
         # Test results match expected
         with open(test_case["test_filename"], "r") as f:
-            expected = json.loads(substitute_vars(f.read()))
+            expected = json.loads(
+                substitute_vars(f.read(), test_case["provider"])
+            )
 
         for output_name, test_result_df in test_case["outputs"]["full"].items():
             output = dataframe_to_dict(test_result_df)
@@ -1678,15 +2384,47 @@ def capture(component):
     current_folder = os.path.dirname(os.path.abspath(__file__))
     components_folder = os.path.join(current_folder, "components")
     deploy(None)
-    results = _get_test_results(metadata, component)
+
+    # Filter components first, then calculate total number of tests for progress bar
+    components_to_test = metadata["components"]
+    if component:
+        components_to_test = [
+            c for c in metadata["components"] if c["name"] == component
+        ]
+
+    total_tests = 0
+    for comp in components_to_test:
+        component_folder = os.path.join(components_folder, comp["name"])
+        test_configuration_file = os.path.join(component_folder, "test", "test.json")
+        if not os.path.exists(test_configuration_file):
+            print(
+                f"Warning: Test configuration file not found for component '{comp['name']}' at {test_configuration_file}"
+            )
+            continue
+        with open(test_configuration_file, "r") as f:
+            test_configurations = json.loads(
+                substitute_vars(f.read(), metadata["provider"])
+            )
+        total_tests += len(test_configurations)
+
+    # Run tests with progress bar
+    if not verbose:
+        with tqdm(total=total_tests, desc="Running SQL tests", unit="test") as pbar:
+            results = _get_test_results(metadata, component, progress_bar=pbar)
+    else:
+        results = _get_test_results(metadata, component)
     dotenv = dotenv_values()
-    for component in metadata["components"]:
+
+    # Reuse the same filtered component list for results processing
+    for component in components_to_test:
         component_folder = os.path.join(components_folder, component["name"])
 
         # Load test configuration to get test_sorting parameter
         test_configuration_file = os.path.join(component_folder, "test", "test.json")
         with open(test_configuration_file, "r") as f:
-            test_configurations = json.loads(substitute_vars(f.read()))
+            test_configurations = json.loads(
+                substitute_vars(f.read(), metadata["provider"])
+            )
 
         # Create a mapping of test_id to test configuration
         test_config_map = {str(config["id"]): config for config in test_configurations}
@@ -1695,7 +2433,7 @@ def capture(component):
             test_folder = os.path.join(component_folder, "test", "fixtures")
             os.makedirs(test_folder, exist_ok=True)
             test_filename = os.path.join(test_folder, f"{test_id}.json")
-            skip_outputs = outputs.get('skip_output', [])
+            skip_outputs = outputs.get("skip_output", [])
 
             # Get test configuration for this test_id
             test_config = test_config_map.get(str(test_id), {})
@@ -1727,11 +2465,15 @@ def package():
     print("Packaging extension...")
     current_folder = os.path.dirname(os.path.abspath(__file__))
     metadata = create_metadata()
-    sql_code = (
-        create_sql_code_bq(metadata)
-        if metadata["provider"] == "bigquery"
-        else create_sql_code_sf(metadata)
-    )
+
+    if metadata["provider"] == "bigquery":
+        sql_code = create_sql_code_bq(metadata)
+    elif metadata["provider"] == "snowflake":
+        sql_code = create_sql_code_sf(metadata)
+    elif metadata["provider"] == "oracle":
+        sql_code = create_sql_code_oracle(metadata)
+    else:
+        raise ValueError(f"Unknown provider: {metadata['provider']}")
     package_filename = os.path.join(current_folder, "extension.zip")
     with zipfile.ZipFile(package_filename, "w") as z:
         with z.open("metadata.json", "w") as f:
@@ -1821,6 +2563,33 @@ def _param_type_to_sf_type(param_type):
         raise ValueError(f"Parameter type '{param_type}' not supported")
 
 
+def _param_type_to_oracle_type(param_type):
+    if param_type in [
+        "Table",
+        "String",
+        "StringSql",
+        "Json",
+        "GeoJson",
+        "GeoJsonDraw",
+        "Condition",
+        "Range",
+        "Selection",
+        "SelectionType",
+        "SelectColumnType",
+        "SelectColumnAggregation",
+        "Column",
+        "ColumnNumber",
+        "SelectColumnNumber",
+    ]:
+        return ["VARCHAR2(4000)", "VARCHAR2"]
+    elif param_type == "Number":
+        return ["NUMBER", "FLOAT"]
+    elif param_type == "Boolean":
+        return ["NUMBER"]  # Oracle uses NUMBER for boolean (0/1)
+    else:
+        raise ValueError(f"Parameter type '{param_type}' not supported")
+
+
 def check():
     print("Checking extension...")
     current_folder = os.path.dirname(os.path.abspath(__file__))
@@ -1868,13 +2637,13 @@ parser.add_argument(
     "--destination",
     help="Choose an specific destination",
     type=str,
-    required="deploy" in argv,
+    required=False,
 )
 parser.add_argument("-v", "--verbose", help="Verbose mode", action="store_true")
 parser.add_argument(
     "--no-deploy",
     help="Skip deployment before testing (for test action only)",
-    action="store_true"
+    action="store_true",
 )
 
 # Only parse args and run if this file is executed directly
