@@ -32,6 +32,8 @@ from tqdm import tqdm
 WORKFLOWS_TEMP_SCHEMA = "WORKFLOWS_TEMP"
 EXTENSIONS_TABLENAME = "WORKFLOWS_EXTENSIONS"
 WORKFLOWS_TEMP_PLACEHOLDER = "@@workflows_temp@@"
+FUNCTION_PREFIX = "__func_"
+STORED_PROCEDURE_PREFIX = "__stproc_"
 
 # Initialize verbose flag
 verbose = False
@@ -899,9 +901,9 @@ def create_sql_code_bq(metadata):
         for func in functions:
             func_type = func.get("type", "function")
             if func_type == "procedure":
-                function_names.append(f"__stproc_{func['name'].upper()}")
+                function_names.append(f"{STORED_PROCEDURE_PREFIX}{func['name'].upper()}")
             else:
-                function_names.append(f"__func_{func['name'].upper()}")
+                function_names.append(f"{FUNCTION_PREFIX}{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -937,10 +939,10 @@ def create_sql_code_bq(metadata):
                     LEAVE;
                 END IF;
                 -- Check if this is custom function or procedure based on prefix
-                IF STARTS_WITH(proceduresArray[ORDINAL(i)], '__func_') THEN
-                    EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], 8);
-                ELSEIF STARTS_WITH(proceduresArray[ORDINAL(i)], '__stproc_') THEN
-                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], 10);
+                IF STARTS_WITH(proceduresArray[ORDINAL(i)], '{FUNCTION_PREFIX}') THEN
+                    EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], {len(FUNCTION_PREFIX) + 1});
+                ELSEIF STARTS_WITH(proceduresArray[ORDINAL(i)], '{STORED_PROCEDURE_PREFIX}') THEN
+                    EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proceduresArray[ORDINAL(i)], {len(STORED_PROCEDURE_PREFIX) + 1});
                 ELSE
                     -- Components (no prefix) 
                     EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || proceduresArray[ORDINAL(i)];
@@ -1119,9 +1121,9 @@ def create_sql_code_sf(metadata):
         for func in functions:
             func_type = func.get("type", "function")
             if func_type == "procedure":
-                function_names.append(f"__stproc_{func['name'].upper()}")
+                function_names.append(f"{STORED_PROCEDURE_PREFIX}{func['name'].upper()}")
             else:
-                function_names.append(f"__func_{func['name'].upper()}")
+                function_names.append(f"{FUNCTION_PREFIX}{func['name'].upper()}")
 
     procedures_code = ""
     for component in metadata["components"]:
@@ -1162,16 +1164,16 @@ def create_sql_code_sf(metadata):
                     WHILE (i < ARRAY_SIZE(proc_array)) DO
                         proc_item := proc_array[i];
                         -- Check if this is a function or procedure based on prefix
-                        IF (STARTSWITH(proc_item, '__func_')) THEN
+                        IF (STARTSWITH(proc_item, '{FUNCTION_PREFIX}')) THEN
                             BEGIN
-                                EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, 8);
+                                EXECUTE IMMEDIATE 'DROP FUNCTION IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, {len(FUNCTION_PREFIX) + 1});
                             EXCEPTION
                                 WHEN OTHER THEN
                                     NULL;
                             END;
-                        ELSEIF (STARTSWITH(proc_item, '__stproc_')) THEN
+                        ELSEIF (STARTSWITH(proc_item, '{STORED_PROCEDURE_PREFIX}')) THEN
                             BEGIN
-                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, 10);
+                                EXECUTE IMMEDIATE 'DROP PROCEDURE IF EXISTS {WORKFLOWS_TEMP_PLACEHOLDER}.' || SUBSTR(proc_item, {len(STORED_PROCEDURE_PREFIX) + 1});
                             EXCEPTION
                                 WHEN OTHER THEN
                                     NULL;
@@ -1202,7 +1204,7 @@ def create_sql_code_sf(metadata):
             -- add to extensions table
 
             INSERT INTO {WORKFLOWS_TEMP_PLACEHOLDER}.{EXTENSIONS_TABLENAME} (name, metadata, procedures)
-            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string};{";".join(function_names) if function_names else ""}');
+            VALUES ('{metadata["name"]}', '{metadata_string}', '{procedures_string}{(";" + ";".join(function_names)) if function_names else ""}');
         END;"""
     )
 
